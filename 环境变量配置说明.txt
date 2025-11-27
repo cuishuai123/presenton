@@ -1,0 +1,162 @@
+# ========================================
+# Presenton 环境变量配置文件
+# ========================================
+# 
+# 使用方法：
+# 1. 在项目根目录创建 .env 文件
+# 2. 复制下面的配置内容
+# 3. 根据需要修改配置值
+# 
+# ========================================
+
+# ========================================
+# 基础配置
+# ========================================
+
+# 是否允许在网页界面中修改 API Keys
+# true = 允许在 Settings 页面修改配置
+# false = 只能通过环境变量配置，Settings 页面不可见
+CAN_CHANGE_KEYS=true
+
+# ========================================
+# LLM（大语言模型）配置
+# ========================================
+
+# 选择使用哪个 LLM 提供商
+# 可选值：openai / google / anthropic / ollama / custom
+# openai = OpenAI ChatGPT
+# google = Google Gemini
+# anthropic = Anthropic Claude  
+# ollama = 本地 Ollama（免费，但需要本地安装）
+# custom = 自定义 LLM 服务（如你的内网 LLM）
+LLM=custom
+
+# ------ Custom LLM 配置（自定义大语言模型）------
+# 你的自定义 LLM 服务地址（OpenAI 兼容格式）
+CUSTOM_LLM_URL=http://10.22.180.199:3000/v1
+
+# 你的自定义 LLM API 密钥
+CUSTOM_LLM_API_KEY=sk-kQKMTKyEOA7X6eZ_Eg_LEqFVvTBTL5CGnLm5-QqgtQ3fgp4CB4UCb4uCU
+
+# 使用的模型名称
+CUSTOM_MODEL=qwq-32b
+
+# ------ OpenAI 配置（如果使用 OpenAI）------
+# OpenAI API 密钥（从 https://platform.openai.com/api-keys 获取）
+OPENAI_API_KEY=
+
+# OpenAI 模型名称
+# 推荐：gpt-4o-mini（性价比高）、gpt-4o（质量最好）、gpt-3.5-turbo（最便宜）
+OPENAI_MODEL=
+
+# ------ Google Gemini 配置（如果使用 Google）------
+# Google API 密钥（从 https://aistudio.google.com/app/apikey 获取）
+GOOGLE_API_KEY=
+
+# Google 模型名称
+# 推荐：gemini-2.0-flash-exp、gemini-1.5-pro
+GOOGLE_MODEL=
+
+# ------ Anthropic Claude 配置（如果使用 Claude）------
+# Anthropic API 密钥
+ANTHROPIC_API_KEY=
+
+# Anthropic 模型名称
+# 推荐：claude-3-5-sonnet-20241022、claude-3-opus-20240229
+ANTHROPIC_MODEL=
+
+# ------ Ollama 配置（如果使用本地 Ollama）------
+# Ollama 服务地址（本地通常是 http://localhost:11434）
+OLLAMA_URL=
+
+# Ollama 模型名称
+# 常用：llama2、llama3、mistral、qwen
+OLLAMA_MODEL=
+
+# ========================================
+# 图片生成配置
+# ========================================
+
+# 图片提供商
+# 可选值：pexels / pixabay
+# 用于在演示文稿中自动添加相关图片
+IMAGE_PROVIDER=pexels
+
+# Pexels API 密钥（从 https://www.pexels.com/api/ 获取）
+# 用途：自动为幻灯片添加高质量免费图片
+PEXELS_API_KEY=pjSQEq7BYZEd8rGLz7GZ2qnHVdPPh2bMxXzNMWhAhCyNwaRdDDev4P
+
+# Pixabay API 密钥（可选）
+PIXABAY_API_KEY=
+
+# ========================================
+# 高级功能配置
+# ========================================
+
+# 是否启用工具调用功能
+# true = LLM 可以调用外部工具（如搜索、计算等）
+# false = 禁用工具调用
+TOOL_CALLS=true
+
+# 是否启用 Web 搜索功能
+# true = 允许 LLM 搜索互联网获取最新信息
+# false = 不使用 Web 搜索
+WEB_GROUNDING=false
+
+# 是否启用扩展推理
+# true = 使用更深入的推理过程（速度较慢但质量更好）
+# false = 标准推理
+EXTENDED_REASONING=false
+
+# 是否禁用思考过程显示
+# true = 不显示 LLM 的思考过程
+# false = 显示思考过程（更透明）
+DISABLE_THINKING=false
+
+# ========================================
+# 数据存储配置
+# ========================================
+
+# 数据库连接 URL（可选）
+# 留空则使用默认的 SQLite 数据库
+# 示例：postgresql://user:password@localhost:5432/presenton
+DATABASE_URL=
+
+# ========================================
+# 隐私和追踪配置
+# ========================================
+
+# 是否禁用匿名使用统计
+# true = 不发送匿名使用数据
+# false = 发送匿名使用数据以帮助改进产品
+DISABLE_ANONYMOUS_TRACKING=false
+
+# ========================================
+# 其他配置
+# ========================================
+
+# 是否使用自定义 URL
+USE_CUSTOM_URL=false
+
+# ========================================
+# 重要提示
+# ========================================
+# 
+# 1. API Key 安全：
+#    - 不要将包含真实 API Key 的文件上传到公开仓库
+#    - .env 文件已被 .gitignore 忽略
+# 
+# 2. 配置优先级：
+#    - 环境变量 > .env 文件 > 默认值
+#    - 如果 CAN_CHANGE_KEYS=true，可以在网页中修改配置
+# 
+# 3. 最小配置：
+#    - 至少需要配置一个 LLM（OpenAI/Google/Anthropic/Ollama/Custom）
+#    - 图片 API 是可选的（没有会影响图片生成功能）
+# 
+# 4. 网络要求：
+#    - Custom LLM URL 需要 Docker 容器可访问
+#    - 如果是内网地址，确保网络连通性
+# 
+# ========================================
+
