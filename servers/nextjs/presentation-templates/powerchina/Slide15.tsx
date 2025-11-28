@@ -102,7 +102,7 @@ const Slide15: React.FC<Slide15Props> = ({ data }) => {
         rel="stylesheet"
       />
       <div
-        className="w-full rounded-sm max-w-[1280px] shadow-lg relative z-20 mx-auto overflow-hidden"
+        className="w-full rounded-sm max-w-[1280px] shadow-lg max-h-[720px] aspect-video relative z-20 mx-auto overflow-hidden"
         style={{
           fontFamily: "var(--heading-font-family, Albert Sans)",
           backgroundColor: "var(--card-background-color,#FFFFFF)",
@@ -119,34 +119,34 @@ const Slide15: React.FC<Slide15Props> = ({ data }) => {
         </div>
 
         {/* 中部模块结构 */}
-        <div className="px-12 pt-8 pb-4 flex flex-col items-center">
+        <div className="px-12 pt-5 pb-2 flex flex-col items-center">
           {/* 中间主模块（橙色条） */}
-          <div className="mb-8">
-            <div className="rounded-3xl px-16 py-6 bg-gradient-to-r from-[#F97316] to-[#EF4444] shadow-[0_12px_30px_rgba(0,0,0,0.2)] text-center text-white">
-              <div className="text-[26px] font-semibold mb-2">
+          <div className="mb-5">
+            <div className="rounded-3xl px-12 py-5 bg-gradient-to-r from-[#F97316] to-[#EF4444] shadow-[0_12px_30px_rgba(0,0,0,0.2)] text-center text-white">
+              <div className="text-[24px] font-semibold mb-1.5">
                 {slideData.mainModule.title}
               </div>
-              <div className="text-[18px]">
+              <div className="text-[16px]">
                 {slideData.mainModule.subtitle}
               </div>
             </div>
           </div>
 
           {/* 下方六个功能模块卡片 */}
-          <div className="w-full flex flex-col gap-8">
+          <div className="w-full flex flex-col gap-4">
             {/* 第一行 3 个 */}
             <div className="flex justify-between px-10">
               {slideData.modules.slice(0, 3).map((m, idx) => (
                 <div
                   key={idx}
-                  className={`w-[28%] rounded-3xl px-8 py-6 bg-gradient-to-br ${
+                  className={`w-[28%] rounded-3xl px-6 py-5 bg-gradient-to-br ${
                     colors[idx]
                   } shadow-[0_10px_24px_rgba(0,0,0,0.18)] text-white text-center`}
                 >
-                  <div className="text-[22px] font-semibold mb-2">
+                  <div className="text-[20px] font-semibold mb-1.5">
                     {m.title}
                   </div>
-                  <div className="text-[16px]">{m.description}</div>
+                  <div className="text-[14px]">{m.description}</div>
                 </div>
               ))}
             </div>
@@ -157,14 +157,14 @@ const Slide15: React.FC<Slide15Props> = ({ data }) => {
                 return (
                   <div
                     key={colorIdx}
-                    className={`w-[28%] rounded-3xl px-8 py-6 bg-gradient-to-br ${
+                    className={`w-[28%] rounded-3xl px-6 py-5 bg-gradient-to-br ${
                       colors[colorIdx]
                     } shadow-[0_10px_24px_rgba(0,0,0,0.18)] text-white text-center`}
                   >
-                    <div className="text-[22px] font-semibold mb-2">
+                    <div className="text-[20px] font-semibold mb-1.5">
                       {m.title}
                     </div>
-                    <div className="text-[16px]">{m.description}</div>
+                    <div className="text-[14px]">{m.description}</div>
                   </div>
                 )
               })}
@@ -173,8 +173,7 @@ const Slide15: React.FC<Slide15Props> = ({ data }) => {
         </div>
 
         {/* 底部条幅图片（公司条幅） */}
-
-        <div className="w-full h-[100px] flex items-center justify-center">
+        <div className="w-full h-[80px] flex items-center justify-center">
           <img
             src="/app_data/images/powerchina/slide_3.png"
             alt="PowerChina footer banner"

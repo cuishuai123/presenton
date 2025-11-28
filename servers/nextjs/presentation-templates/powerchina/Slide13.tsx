@@ -123,7 +123,7 @@ const Slide13: React.FC<Slide13Props> = ({ data }) => {
         rel="stylesheet"
       />
       <div
-        className="w-full rounded-sm max-w-[1280px] shadow-lg relative z-20 mx-auto overflow-hidden"
+        className="w-full rounded-sm max-w-[1280px] shadow-lg max-h-[720px] aspect-video relative z-20 mx-auto overflow-hidden"
         style={{
           fontFamily: "var(--heading-font-family, Albert Sans)",
           backgroundColor: "var(--card-background-color,#FFFFFF)",
@@ -140,34 +140,34 @@ const Slide13: React.FC<Slide13Props> = ({ data }) => {
         </div>
 
         {/* 一期建设内容标题 */}
-        <div className="px-12 pt-6 pb-3 text-[22px] font-semibold text-[#111827]">
+        <div className="px-12 pt-4 pb-2 text-[20px] font-semibold text-[#111827]">
           <span className="inline-block w-3 h-3 rounded-full bg-black mr-2" />
           {slideData.phaseOneTitle}
         </div>
 
         {/* 中部蓝灰双色大框 */}
         <div className="px-12">
-          <div className="flex rounded-3xl overflow-hidden shadow-[0_12px_30px_rgba(0,0,0,0.15)] h-[360px]">
+          <div className="flex rounded-3xl overflow-hidden shadow-[0_12px_30px_rgba(0,0,0,0.15)] h-[280px]">
             {/* 左侧蓝色块：平台基座 */}
             <div
-              className="w-1/2 px-10 py-8 text-white flex flex-col justify-center"
+              className="w-1/2 px-10 py-6 text-white flex flex-col justify-center"
               style={{ backgroundColor: "#3366CC" }}
             >
-              <div className="text-[26px] font-semibold mb-4">
+              <div className="text-[24px] font-semibold mb-3">
                 {slideData.phaseOneLeft.title}
               </div>
-              <div className="space-y-2 text-[18px] leading-[1.8]">
+              <div className="space-y-1.5 text-[16px] leading-[1.6]">
                 {slideData.phaseOneLeft.lines.map((line, idx) => (
                   <div key={idx}>{line}</div>
                 ))}
               </div>
             </div>
             {/* 右侧灰色块：核心功能模块 */}
-            <div className="w-1/2 bg-[#F5F7FA] px-10 py-8 flex flex-col justify-center">
-              <div className="text-[22px] font-semibold text-[#CC3333] mb-4">
+            <div className="w-1/2 bg-[#F5F7FA] px-10 py-6 flex flex-col justify-center">
+              <div className="text-[20px] font-semibold text-[#CC3333] mb-3">
                 {slideData.phaseOneRightTitle}
               </div>
-              <div className="space-y-2 text-[18px] leading-[1.8] text-[#4B5563]">
+              <div className="space-y-1.5 text-[16px] leading-[1.6] text-[#4B5563]">
                 {slideData.phaseOneRightLines.map((line, idx) => (
                   <div key={idx}>{line}</div>
                 ))}
@@ -177,16 +177,16 @@ const Slide13: React.FC<Slide13Props> = ({ data }) => {
         </div>
 
         {/* 二期展望标题与说明 */}
-        <div className="px-12 pt-6 text-[22px] font-semibold text-[#111827]">
+        <div className="px-12 pt-3 text-[20px] font-semibold text-[#111827]">
           <span className="inline-block w-3 h-3 rounded-full bg-black mr-2" />
           {slideData.phaseTwoTitle}
         </div>
-        <div className="px-16 pt-2 pb-4 text-[18px] leading-[1.8] text-[#4B5563]">
+        <div className="px-16 pt-1 pb-2 text-[16px] leading-[1.6] text-[#4B5563]">
           {slideData.phaseTwoDescription}
         </div>
 
         {/* 底部条幅图片（公司条幅） */}
-        <div className="w-full h-[100px] flex items-center justify-center">
+        <div className="w-full h-[80px] flex items-center justify-center">
           <img
             src="/app_data/images/powerchina/slide_3.png"
             alt="PowerChina footer banner"
