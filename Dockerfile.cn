@@ -1,0 +1,77 @@
+# 使用官方 Node 镜像，保证 Node 在你的服务器上稳定
+FROM node:20-bullseye
+
+# 配置 Debian 国内镜像源（阿里云）
+RUN if [ -f /etc/apt/sources.list.d/debian.sources ]; then \
+        sed -i 's|deb.debian.org|mirrors.aliyun.com|g' /etc/apt/sources.list.d/debian.sources && \
+        sed -i 's|security.debian.org|mirrors.aliyun.com|g' /etc/apt/sources.list.d/debian.sources; \
+    fi && \
+    if [ -f /etc/apt/sources.list ]; then \
+        sed -i 's|deb.debian.org|mirrors.aliyun.com|g' /etc/apt/sources.list && \
+        sed -i 's|security.debian.org|mirrors.aliyun.com|g' /etc/apt/sources.list; \
+    else \
+        echo "deb https://mirrors.aliyun.com/debian/ bullseye main" > /etc/apt/sources.list && \
+        echo "deb https://mirrors.aliyun.com/debian/ bullseye-updates main" >> /etc/apt/sources.list && \
+        echo "deb https://mirrors.aliyun.com/debian-security/ bullseye-security main" >> /etc/apt/sources.list; \
+    fi
+
+# 安装 Python3 / pip、nginx、chromium 等运行依赖
+RUN for i in 1 2 3; do \
+        apt-get update && break || sleep 5; \
+    done && \
+    apt-get install -y --no-install-recommends \
+        python3 python3-pip python3-venv \
+        nginx \
+        curl \
+        libreoffice \
+        fontconfig \
+        chromium \
+    && rm -rf /var/lib/apt/lists/*
+
+# 设置 python/pip 默认
+RUN ln -sf /usr/bin/python3 /usr/bin/python && \
+    ln -sf /usr/bin/pip3 /usr/bin/pip
+
+# 配置 npm 使用国内镜像源
+RUN npm config set registry https://registry.npmmirror.com
+
+# 工作目录
+WORKDIR /app  
+
+# 环境变量
+ENV APP_DATA_DIRECTORY=/app_data
+ENV TEMP_DIRECTORY=/tmp/presenton
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+
+# 使用清华源安装 FastAPI 等 Python 依赖
+RUN pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple && \
+    pip install --no-cache-dir --retries 3 --timeout 100 \
+        aiohttp aiomysql aiosqlite asyncpg fastapi[standard] \
+        pathvalidate pdfplumber chromadb sqlmodel \
+        anthropic google-genai openai fastmcp dirtyjson && \
+    pip install --no-cache-dir --retries 3 --timeout 100 \
+        docling --extra-index-url https://download.pytorch.org/whl/cpu
+
+# 安装 Next.js 依赖并构建
+WORKDIR /app/servers/nextjs
+COPY servers/nextjs/package.json servers/nextjs/package-lock.json ./
+RUN npm ci --no-audit --no-fund || \
+    (sleep 5 && npm ci --no-audit --no-fund) || \
+    (sleep 10 && npm ci --no-audit --no-fund)
+
+COPY servers/nextjs/ /app/servers/nextjs/
+RUN npm run build
+
+# 拷贝 FastAPI 和启动脚本
+WORKDIR /app
+COPY servers/fastapi/ ./servers/fastapi/
+COPY package.json ./
+COPY start.js LICENSE NOTICE ./
+
+# 拷贝 nginx 配置
+COPY nginx.conf /etc/nginx/nginx.conf
+
+EXPOSE 80
+
+# 启动（保持使用原来的 start.js）
+CMD ["node", "/app/start.js"]

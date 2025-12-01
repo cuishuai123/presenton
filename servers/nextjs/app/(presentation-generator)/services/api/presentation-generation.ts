@@ -1,6 +1,7 @@
 import { getHeader, getHeaderForFormData } from "./header";
 import { IconSearch, ImageGenerate, ImageSearch, PreviousGeneratedImagesResponse } from "./params";
 import { ApiResponseHandler } from "./api-error-handler";
+import { getStoredUserCode } from "@/app/(presentation-generator)/utils/userCode";
 
 export class PresentationGenerationApi {
   static async uploadDoc(documents: File[]) {
@@ -60,7 +61,7 @@ export class PresentationGenerationApi {
     include_table_of_contents,
     include_title_slide,
     web_search,
-    
+    userCode,
   }: {
     content: string;
     n_slides: number | null;
@@ -72,6 +73,7 @@ export class PresentationGenerationApi {
     include_table_of_contents?: boolean;
     include_title_slide?: boolean;
     web_search?: boolean;
+    userCode?: string;
   }) {
     try {
       const response = await fetch(
@@ -90,6 +92,7 @@ export class PresentationGenerationApi {
             include_table_of_contents,
             include_title_slide,
             web_search,
+            userCode: userCode ?? getStoredUserCode() ?? undefined,
           }),
           cache: "no-cache",
         }

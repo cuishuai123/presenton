@@ -230,7 +230,31 @@ export const LayoutProvider: React.FC<{
               templateName: template.templateName,
             };
 
-            const sampleData = module.Schema.parse({});
+            let sampleData = {};
+            try {
+              const result = module.Schema.safeParse({});
+              if (result.success) {
+                sampleData = result.data;
+              } else {
+                // 退化到 partial schema，避免因为必填字段缺少默认值而报错
+                const partialResult = module.Schema.partial().safeParse({});
+                if (partialResult.success) {
+                  sampleData = partialResult.data;
+                } else {
+                  console.warn(
+                    `⚠️ Schema parse failed for ${fileName}, using empty sample data`,
+                    result.error
+                  );
+                  sampleData = {};
+                }
+              }
+            } catch (schemaParseError) {
+              console.warn(
+                `⚠️ Unexpected error while generating sample data for ${fileName}`,
+                schemaParseError
+              );
+              sampleData = {};
+            }
             const fullData: FullDataInfo = {
               name: layoutName,
               component: module.default,

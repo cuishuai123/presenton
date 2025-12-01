@@ -7,6 +7,8 @@ import { PresentationGenerationApi } from "../../services/api/presentation-gener
 import { Template, LoadingState, TABS } from "../types/index";
 import { MixpanelEvent, trackEvent } from "@/utils/mixpanel";
 import { useTranslation } from "@/app/hooks/useTranslation";
+import { useUserCode } from "../../hooks/useUserCode";
+import { appendUserCodeToPath } from "../../utils/userCode";
 
 const DEFAULT_LOADING_STATE: LoadingState = {
   message: "",
@@ -24,6 +26,7 @@ export const usePresentationGeneration = (
   const dispatch = useDispatch();
   const router = useRouter();
   const { t } = useTranslation();
+  const { userCode } = useUserCode();
   const [loadingState, setLoadingState] = useState<LoadingState>(DEFAULT_LOADING_STATE);
 
   const validateInputs = useCallback(() => {
@@ -88,7 +91,7 @@ export const usePresentationGeneration = (
 
       if (response) {
         dispatch(clearPresentationData());
-        router.replace(`/presentation?id=${presentationId}&stream=true`);
+        router.replace(appendUserCodeToPath(`/presentation?id=${presentationId}&stream=true`, userCode));
       }
     } catch (error: any) {
       console.error('Error In Presentation Generation(prepare).', error);
@@ -98,7 +101,7 @@ export const usePresentationGeneration = (
     } finally {
       setLoadingState(DEFAULT_LOADING_STATE);
     }
-  }, [validateInputs, prepareLayoutData, presentationId, outlines, dispatch, router, selectedTemplate, t]);
+  }, [validateInputs, prepareLayoutData, presentationId, outlines, dispatch, router, selectedTemplate, t, userCode]);
 
   return { loadingState, handleSubmit };
 }; 

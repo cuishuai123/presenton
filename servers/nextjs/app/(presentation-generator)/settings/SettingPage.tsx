@@ -15,6 +15,8 @@ import Header from "../dashboard/components/Header";
 import { LLMConfig } from "@/types/llm_config";
 import { trackEvent, MixpanelEvent } from "@/utils/mixpanel";
 import { useTranslation } from "@/app/hooks/useTranslation";
+import { useUserCode } from "../hooks/useUserCode";
+import { appendUserCodeToPath } from "../utils/userCode";
 
 // Button state interface
 interface ButtonState {
@@ -30,6 +32,7 @@ const SettingsPage = () => {
   const { t } = useTranslation();
   const router = useRouter();
   const pathname = usePathname();
+  const { userCode } = useUserCode();
   const userConfigState = useSelector((state: RootState) => state.userConfig);
   const [llmConfig, setLlmConfig] = useState<LLMConfig>(
     userConfigState.llm_config
@@ -94,7 +97,7 @@ const SettingsPage = () => {
         text: t('settings.saveConfiguration'),
       }));
       trackEvent(MixpanelEvent.Navigation, { from: pathname, to: "/upload" });
-      router.push("/upload");
+      router.push(appendUserCodeToPath("/upload", userCode));
     } catch (error) {
       toast.info(error instanceof Error ? error.message : t('settings.failedToSave'));
       setButtonState(prev => ({
@@ -146,9 +149,9 @@ const SettingsPage = () => {
 
   useEffect(() => {
     if (!canChangeKeys) {
-      router.push("/dashboard");
+      router.push(appendUserCodeToPath("/dashboard", userCode));
     }
-  }, [canChangeKeys, router]);
+  }, [canChangeKeys, router, userCode]);
 
   if (!canChangeKeys) {
     return null;

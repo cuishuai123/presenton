@@ -40,7 +40,9 @@ export const Schema = z
       .max(20)
       .default("建设内容总览")
       .meta({ description: "顶部蓝色条中的页面标题" }),
-    mainModule: MainModuleSchema,
+    mainModule: MainModuleSchema.default(
+      MainModuleSchema.parse({})
+    ),
     modules: z
       .array(ModuleSchema)
       .length(6)

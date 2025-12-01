@@ -1,5 +1,7 @@
 import { useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useUserCode } from "../../hooks/useUserCode";
+import { appendUserCodeToPath } from "../../utils/userCode";
 
 export const usePresentationNavigation = (
   presentationId: string,
@@ -9,6 +11,7 @@ export const usePresentationNavigation = (
 ) => {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { userCode } = useUserCode();
 
   const isPresentMode = searchParams.get("mode") === "present";
   const stream = searchParams.get("stream");
@@ -39,18 +42,18 @@ export const usePresentationNavigation = (
 
   const handlePresentExit = useCallback(() => {
     setIsFullscreen(false);
-    router.push(`/presentation?id=${presentationId}`);
-  }, [router, presentationId, setIsFullscreen]);
+    router.push(appendUserCodeToPath(`/presentation?id=${presentationId}`, userCode));
+  }, [router, presentationId, setIsFullscreen, userCode]);
 
   const handleSlideChange = useCallback((newSlide: number, presentationData: any) => {
     if (newSlide >= 0 && newSlide < presentationData?.slides.length!) {
       setSelectedSlide(newSlide);
       router.push(
-        `/presentation?id=${presentationId}&mode=present&slide=${newSlide}`,
+        appendUserCodeToPath(`/presentation?id=${presentationId}&mode=present&slide=${newSlide}`, userCode),
         { scroll: false }
       );
     }
-  }, [router, presentationId, setSelectedSlide]);
+  }, [router, presentationId, setSelectedSlide, userCode]);
 
   return {
     isPresentMode,

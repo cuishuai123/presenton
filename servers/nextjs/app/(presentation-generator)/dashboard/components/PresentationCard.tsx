@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React from "react";
 
 import { Card } from "@/components/ui/card";
 import { DashboardApi } from "@/app/(presentation-generator)/services/api/dashboard";
@@ -12,19 +12,22 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useTemplateLayouts } from "@/app/(presentation-generator)/hooks/useTemplateLayouts";
 import { useTranslation } from "@/app/hooks/useTranslation";
+import { appendUserCodeToPath } from "@/app/(presentation-generator)/utils/userCode";
 
 export const PresentationCard = ({
   id,
   title,
   created_at,
   slide,
-  onDeleted
+  onDeleted,
+  userCode
 }: {
   id: string;
   title: string;
   created_at: string;
   slide: any;
   onDeleted?: (presentationId: string) => void;
+  userCode?: string;
 }) => {
   const { t } = useTranslation();
   const router = useRouter();
@@ -34,7 +37,7 @@ export const PresentationCard = ({
 
   const handlePreview = (e: React.MouseEvent) => {
     e.preventDefault();
-    router.push(`/presentation?id=${id}`);
+    router.push(appendUserCodeToPath(`/presentation?id=${id}`, userCode));
   };
 
   const handleDelete = async (e: React.MouseEvent) => {

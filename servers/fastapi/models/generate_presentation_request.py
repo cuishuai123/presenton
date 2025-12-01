@@ -40,3 +40,6 @@ class GeneratePresentationRequest(BaseModel):
     trigger_webhook: bool = Field(
         default=False, description="Whether to trigger subscribed webhooks"
     )
+    userCode: Optional[str] = Field(
+        default=None, description="User code for identifying the user"
+    )

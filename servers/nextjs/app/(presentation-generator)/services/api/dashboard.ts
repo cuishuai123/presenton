@@ -2,6 +2,7 @@ import {
   getHeader,
 } from "@/app/(presentation-generator)/services/api/header";
 import { ApiResponseHandler } from "@/app/(presentation-generator)/services/api/api-error-handler";
+import { getStoredUserCode } from "@/app/(presentation-generator)/utils/userCode";
 
 export interface PresentationResponse {
   id: string;
@@ -24,10 +25,15 @@ export interface PresentationResponse {
 
 export class DashboardApi {
 
-  static async getPresentations(): Promise<PresentationResponse[]> {
+  static async getPresentations(userCode?: string): Promise<PresentationResponse[]> {
     try {
+      const resolvedUserCode = userCode ?? getStoredUserCode() ?? undefined;
+      const url = resolvedUserCode 
+        ? `/api/v1/ppt/presentation/all?userCode=${encodeURIComponent(resolvedUserCode)}`
+        : `/api/v1/ppt/presentation/all`;
+      
       const response = await fetch(
-        `/api/v1/ppt/presentation/all`,
+        url,
         {
           method: "GET",
         }

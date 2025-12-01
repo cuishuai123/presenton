@@ -27,6 +27,8 @@ import Wrapper from "@/components/Wrapper";
 import { setPptGenUploadState } from "@/store/slices/presentationGenUpload";
 import { trackEvent, MixpanelEvent } from "@/utils/mixpanel";
 import { useTranslation } from "@/app/hooks/useTranslation";
+import { useUserCode } from "@/app/(presentation-generator)/hooks/useUserCode";
+import { appendUserCodeToPath } from "@/app/(presentation-generator)/utils/userCode";
 
 // Types for loading state
 interface LoadingState {
@@ -41,6 +43,15 @@ const UploadPage = () => {
   const { t } = useTranslation();
   const router = useRouter();
   const pathname = usePathname();
+  const { userCode, isReady } = useUserCode();
+  const ensureUserReady = () => {
+    if (!isReady || !userCode) {
+      toast.error("用户信息尚未加载，请稍后重试");
+      return false;
+    }
+    return true;
+  };
+
   const dispatch = useDispatch();
 
   // State management
@@ -114,6 +125,7 @@ const UploadPage = () => {
    * Handles document processing
    */
   const handleDocumentProcessing = async () => {
+    if (!ensureUserReady()) return;
     setLoadingState({
       isLoading: true,
       message: "Processing documents...",
@@ -143,13 +155,14 @@ const UploadPage = () => {
     }));
     dispatch(clearOutlines())
     trackEvent(MixpanelEvent.Navigation, { from: pathname, to: "/documents-preview" });
-    router.push("/documents-preview");
+    router.push(appendUserCodeToPath("/documents-preview", userCode));
   };
 
   /**
    * Handles direct presentation generation without documents
    */
   const handleDirectPresentationGeneration = async () => {
+    if (!ensureUserReady()) return;
     setLoadingState({
       isLoading: true,
       message: "Generating outlines...",
@@ -170,13 +183,14 @@ const UploadPage = () => {
       include_table_of_contents: !!config?.includeTableOfContents,
       include_title_slide: !!config?.includeTitleSlide,
       web_search: !!config?.webSearch,
+      userCode: userCode || undefined,
     });
 
 
     dispatch(setPresentationId(createResponse.id));
     dispatch(clearOutlines())
     trackEvent(MixpanelEvent.Navigation, { from: pathname, to: "/outline" });
-    router.push("/outline");
+    router.push(appendUserCodeToPath("/outline", userCode));
   };
 
   /**

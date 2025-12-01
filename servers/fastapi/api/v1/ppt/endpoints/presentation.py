@@ -7,7 +7,7 @@ import random
 import traceback
 from typing import Annotated, List, Literal, Optional, Tuple
 import dirtyjson
-from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, Path
+from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, Path, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -72,28 +72,43 @@ PRESENTATION_ROUTER = APIRouter(prefix="/presentation", tags=["Presentation"])
 
 
 @PRESENTATION_ROUTER.get("/all", response_model=List[PresentationWithSlides])
-async def get_all_presentations(sql_session: AsyncSession = Depends(get_async_session)):
-    presentations_with_slides = []
+async def get_all_presentations(
+    userCode: Optional[str] = Query(None, alias="userCode"),
+    sql_session: AsyncSession = Depends(get_async_session)
+):
+    try:
+        presentations_with_slides = []
 
-    query = (
-        select(PresentationModel, SlideModel)
-        .join(
-            SlideModel,
-            (SlideModel.presentation == PresentationModel.id) & (SlideModel.index == 0),
+        query = (
+            select(PresentationModel, SlideModel)
+            .join(
+                SlideModel,
+                (SlideModel.presentation == PresentationModel.id) & (SlideModel.index == 0),
+            )
         )
-        .order_by(PresentationModel.created_at.desc())
-    )
+        
+        # 如果提供了 userCode，则按用户过滤
+        if userCode:
+            query = query.where(PresentationModel.user_id == userCode)
+        
+        query = query.order_by(PresentationModel.created_at.desc())
 
-    results = await sql_session.execute(query)
-    rows = results.all()
-    presentations_with_slides = [
-        PresentationWithSlides(
-            **presentation.model_dump(),
-            slides=[first_slide],
-        )
-        for presentation, first_slide in rows
-    ]
-    return presentations_with_slides
+        results = await sql_session.execute(query)
+        rows = results.all()
+        presentations_with_slides = [
+            PresentationWithSlides(
+                **presentation.model_dump(),
+                slides=[first_slide],
+            )
+            for presentation, first_slide in rows
+        ]
+        return presentations_with_slides
+    except Exception as e:
+        import traceback
+        error_msg = f"Error in get_all_presentations: {str(e)}"
+        print(f"ERROR: {error_msg}")
+        print(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=error_msg)
 
 
 @PRESENTATION_ROUTER.get("/{id}", response_model=PresentationWithSlides)
@@ -138,6 +153,7 @@ async def create_presentation(
     include_table_of_contents: Annotated[bool, Body()] = False,
     include_title_slide: Annotated[bool, Body()] = True,
     web_search: Annotated[bool, Body()] = False,
+    userCode: Annotated[Optional[str], Body()] = None,
     sql_session: AsyncSession = Depends(get_async_session),
 ):
 
@@ -149,24 +165,33 @@ async def create_presentation(
 
     presentation_id = uuid.uuid4()
 
-    presentation = PresentationModel(
-        id=presentation_id,
-        content=content,
-        n_slides=n_slides,
-        language=language,
-        file_paths=file_paths,
-        tone=tone.value,
-        verbosity=verbosity.value,
-        instructions=instructions,
-        include_table_of_contents=include_table_of_contents,
-        include_title_slide=include_title_slide,
-        web_search=web_search,
-    )
+    try:
+        presentation = PresentationModel(
+            id=presentation_id,
+            content=content,
+            n_slides=n_slides,
+            language=language,
+            file_paths=file_paths,
+            tone=tone.value,
+            verbosity=verbosity.value,
+            instructions=instructions,
+            include_table_of_contents=include_table_of_contents,
+            include_title_slide=include_title_slide,
+            web_search=web_search,
+            user_id=userCode,
+        )
 
-    sql_session.add(presentation)
-    await sql_session.commit()
+        sql_session.add(presentation)
+        await sql_session.commit()
 
-    return presentation
+        return presentation
+    except Exception as e:
+        import traceback
+        error_msg = f"Error in create_presentation: {str(e)}"
+        print(f"ERROR: {error_msg}")
+        print(traceback.format_exc())
+        await sql_session.rollback()
+        raise HTTPException(status_code=500, detail=error_msg)
 
 
 @PRESENTATION_ROUTER.post("/prepare", response_model=PresentationModel)
@@ -729,6 +754,7 @@ async def generate_presentation_handler(
             tone=request.tone.value,
             verbosity=request.verbosity.value,
             instructions=request.instructions,
+            user_id=request.userCode,
         )
 
         # Updating async status

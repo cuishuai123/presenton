@@ -6,7 +6,10 @@ def get_can_change_keys_env():
 
 
 def get_database_url_env():
-    return os.getenv("DATABASE_URL")
+    # PPT 助手需要关系型数据库（PostgreSQL/MySQL/SQLite）
+    # 优先使用问知的 PostgreSQL 连接（如果设置了 PG_URL，问知用于向量库的 PostgreSQL）
+    # 否则使用 PPT 助手自己的数据库配置
+    return os.getenv("PG_URL") or os.getenv("DATABASE_URL")
 
 
 def get_app_data_directory_env():

@@ -21,6 +21,17 @@ from services.database import get_async_session
 from services.documents_loader import DocumentsLoader
 from utils.llm_calls.generate_presentation_outlines import generate_ppt_outline
 from utils.ppt_utils import get_presentation_title_from_outlines
+import re
+
+
+def _extract_json_payload(raw: str) -> str:
+    if not raw:
+        return raw
+    start = raw.find("{")
+    end = raw.rfind("}")
+    if start != -1 and end != -1 and end > start:
+        return raw[start : end + 1]
+    return raw
 
 OUTLINES_ROUTER = APIRouter(prefix="/outlines", tags=["Outlines"])
 
@@ -86,19 +97,31 @@ async def stream_outlines(
         # 打印响应摘要
         print(f"INFO: Received presentation outlines, length: {len(presentation_outlines_text)} chars")
 
-        try:
-            presentation_outlines_json = dict(
-                dirtyjson.loads(presentation_outlines_text)
-            )
-        except Exception as e:
-            traceback.print_exc()
-            print("ERROR: Failed to parse JSON from LLM response")
-            print(f"Raw content (first 500 chars): {repr(presentation_outlines_text[:500])}...")
-            print(f"Total length: {len(presentation_outlines_text)} chars")
+        cleaned_response = presentation_outlines_text.strip()
+        if not cleaned_response:
             yield SSEErrorResponse(
-                detail=f"Failed to generate presentation outlines. Please try again. {str(e)}",
+                detail="Failed to generate presentation outlines. The model returned an empty response.",
             ).to_string()
             return
+
+        try:
+            presentation_outlines_json = dict(
+                dirtyjson.loads(cleaned_response)
+            )
+        except Exception as e:
+            # 尝试从原始内容中提取 JSON 片段
+            fallback_payload = _extract_json_payload(cleaned_response)
+            try:
+                presentation_outlines_json = dict(dirtyjson.loads(fallback_payload))
+            except Exception:
+                traceback.print_exc()
+                print("ERROR: Failed to parse JSON from LLM response")
+                print(f"Raw content (first 500 chars): {repr(cleaned_response[:500])}...")
+                print(f"Total length: {len(cleaned_response)} chars")
+                yield SSEErrorResponse(
+                    detail=f"Failed to generate presentation outlines. Please try again. {str(e)}",
+                ).to_string()
+                return
 
         presentation_outlines = PresentationOutlineModel(**presentation_outlines_json)
 

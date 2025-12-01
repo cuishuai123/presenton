@@ -5,6 +5,8 @@ import { PlusIcon } from "@radix-ui/react-icons";
 import { useRouter } from "next/navigation";
 import { PresentationResponse } from "@/app/(presentation-generator)/services/api/dashboard";
 import { useTranslation } from "@/app/hooks/useTranslation";
+import { useUserCode } from "@/app/(presentation-generator)/hooks/useUserCode";
+import { appendUserCodeToPath } from "@/app/(presentation-generator)/utils/userCode";
 
 interface PresentationGridProps {
   presentations: PresentationResponse[];
@@ -23,11 +25,12 @@ export const PresentationGrid = ({
 }: PresentationGridProps) => {
   const { t } = useTranslation();
   const router = useRouter();
+  const { userCode } = useUserCode();
   const handleCreateNewPresentation = () => {
     if (type === "slide") {
-      router.push("/upload");
+      router.push(appendUserCodeToPath("/upload", userCode));
     } else {
-      router.push("/editor");
+      router.push(appendUserCodeToPath("/editor", userCode));
     }
   };
 
@@ -111,6 +114,7 @@ export const PresentationGrid = ({
             created_at={presentation.created_at}
             slide={presentation.slides[0]}
             onDeleted={onPresentationDeleted}
+            userCode={userCode || undefined}
           />
         ))}
     </div>

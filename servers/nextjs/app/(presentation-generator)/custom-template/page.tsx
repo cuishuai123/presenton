@@ -11,6 +11,8 @@ import { useSlideProcessing } from "./hooks/useSlideProcessing";
 import { useLayoutSaving } from "./hooks/useLayoutSaving";
 import { useAPIKeyCheck } from "./hooks/useAPIKeyCheck";
 import { useRouter, usePathname } from "next/navigation";
+import { useUserCode } from "../hooks/useUserCode";
+import { appendUserCodeToPath } from "../utils/userCode";
 import { LoadingSpinner } from "./components/LoadingSpinner";
 import { FileUploadSection } from "./components/FileUploadSection";
 import { SaveLayoutButton } from "./components/SaveLayoutButton";
@@ -22,6 +24,7 @@ import { trackEvent, MixpanelEvent } from "@/utils/mixpanel";
 const CustomTemplatePage = () => {
   const router = useRouter();
   const pathname = usePathname();
+  const { userCode } = useUserCode();
   const { refetch } = useLayout();
   
   // Custom hooks for different concerns
@@ -47,7 +50,7 @@ const CustomTemplatePage = () => {
     trackEvent(MixpanelEvent.CustomTemplate_Save_Templates_API_Call);
     const id = await saveLayout(layoutName, description);
     if (id) {
-      router.push(`/template-preview/custom-${id}`);
+      router.push(appendUserCodeToPath(`/template-preview/custom-${id}`, userCode));
     }
     return id;
   };

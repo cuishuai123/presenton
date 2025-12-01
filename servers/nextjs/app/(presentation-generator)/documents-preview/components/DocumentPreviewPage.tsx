@@ -29,6 +29,8 @@ import { ChevronRight, PanelRightOpen, X } from "lucide-react";
 import ToolTip from "@/components/ToolTip";
 import Header from "@/app/(presentation-generator)/dashboard/components/Header";
 import { trackEvent, MixpanelEvent } from "@/utils/mixpanel";
+import { useUserCode } from "@/app/(presentation-generator)/hooks/useUserCode";
+import { appendUserCodeToPath } from "@/app/(presentation-generator)/utils/userCode";
 
 // Types
 interface LoadingState {
@@ -52,6 +54,7 @@ const DocumentsPreviewPage: React.FC = () => {
   const dispatch = useDispatch();
   const router = useRouter();
   const pathname = usePathname();
+  const { userCode, isReady } = useUserCode();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Redux state
@@ -135,6 +138,10 @@ const DocumentsPreviewPage: React.FC = () => {
   };
 
   const handleCreatePresentation = async () => {
+    if (!isReady || !userCode) {
+      toast.error("用户信息尚未加载，请稍后再试");
+      return;
+    }
     try {
       setShowLoading({
         message: "Generating presentation outline...",
@@ -159,12 +166,13 @@ const DocumentsPreviewPage: React.FC = () => {
           include_table_of_contents: !!config?.includeTableOfContents,
           include_title_slide: !!config?.includeTitleSlide,
           web_search: !!config?.webSearch,
+          userCode: userCode || undefined,
         }
       );
 
       dispatch(setPresentationId(createResponse.id));
       trackEvent(MixpanelEvent.Navigation, { from: pathname, to: "/outline" });
-      router.replace("/outline");
+      router.replace(appendUserCodeToPath("/outline", userCode));
     } catch (error: any) {
       console.error("Error in radar presentation creation:", error);
       toast.error("Error", {

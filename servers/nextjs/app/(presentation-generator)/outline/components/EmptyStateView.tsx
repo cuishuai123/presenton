@@ -4,10 +4,13 @@ import { Button } from "@/components/ui/button";
 import Wrapper from "@/components/Wrapper";
 import { FileText, Plus, ArrowRight } from "lucide-react";
 import { useTranslation } from "@/app/hooks/useTranslation";
+import { useUserCode } from "../../hooks/useUserCode";
+import { appendUserCodeToPath } from "../../utils/userCode";
 
 const EmptyStateView: React.FC = () => {
     const { t } = useTranslation();
     const router = useRouter();
+    const { userCode } = useUserCode();
 
     return (
         <Wrapper>
@@ -38,7 +41,7 @@ const EmptyStateView: React.FC = () => {
                     {/* Action Button */}
                     <div className="pt-4">
                         <Button
-                            onClick={() => router.push("/upload")}
+                            onClick={() => router.push(appendUserCodeToPath("/upload", userCode))}
                             className="group bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white px-8 py-4 rounded-xl text-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
                         >
                             <Plus className="w-5 h-5 mr-2" />

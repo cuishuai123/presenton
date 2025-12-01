@@ -10,16 +10,21 @@ import LanguageSelector from "@/components/LanguageSelector";
 import { Layout, FilePlus2 } from "lucide-react";
 import { trackEvent, MixpanelEvent } from "@/utils/mixpanel";
 import { useTranslation } from "@/app/hooks/useTranslation";
+import { useUserCode } from "@/app/(presentation-generator)/hooks/useUserCode";
+import { appendUserCodeToPath } from "@/app/(presentation-generator)/utils/userCode";
 const Header = () => {
   const { t } = useTranslation();
   const pathname = usePathname();
+  const { userCode } = useUserCode();
+
+  const withUserCode = (path: string) => appendUserCodeToPath(path, userCode);
   return (
     <div className="bg-[#5146E5] w-full shadow-lg sticky top-0 z-50">
       <Wrapper>
         <div className="flex items-center justify-between py-1">
           <div className="flex items-center gap-3">
             {(pathname !== "/upload" && pathname !== "/dashboard") && <BackBtn />}
-            <Link href="/dashboard" onClick={() => trackEvent(MixpanelEvent.Navigation, { from: pathname, to: "/dashboard" })}>
+            <Link href={withUserCode("/dashboard")} onClick={() => trackEvent(MixpanelEvent.Navigation, { from: pathname, to: "/dashboard" })}>
               <img
                 src="/logo-white.png"
                 alt="Presentation logo"
@@ -29,7 +34,7 @@ const Header = () => {
           </div>
           <div className="flex items-center gap-3">
             <Link
-              href="/custom-template"
+              href={withUserCode("/custom-template")}
               prefetch={false}
               onClick={() => trackEvent(MixpanelEvent.Navigation, { from: pathname, to: "/custom-template" })}
               className="flex items-center gap-2 px-3 py-2 text-white hover:bg-primary/80 rounded-md transition-colors outline-none"
@@ -39,7 +44,7 @@ const Header = () => {
               <span className="text-sm font-medium font-inter">{t('nav.createTemplate')}</span>
             </Link>
             <Link
-              href="/template-preview"
+              href={withUserCode("/template-preview")}
               prefetch={false}
               onClick={() => trackEvent(MixpanelEvent.Navigation, { from: pathname, to: "/template-preview" })}
               className="flex items-center gap-2 px-3 py-2 text-white hover:bg-primary/80 rounded-md transition-colors outline-none"

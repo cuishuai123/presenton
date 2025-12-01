@@ -1,6 +1,8 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import { useParams, useRouter, usePathname } from "next/navigation";
+import { useUserCode } from "../../hooks/useUserCode";
+import { appendUserCodeToPath } from "../../utils/userCode";
 import LoadingStates from "../components/LoadingStates";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -20,6 +22,7 @@ import { getHeader } from "../../services/api/header";
 const GroupLayoutPreview = () => {
   const params = useParams();
   const router = useRouter();
+  const { userCode } = useUserCode();
   const rawSlug = ((): string => {
     const value: any = (params as any)?.slug;
     if (typeof value === "string") return value;
@@ -117,7 +120,7 @@ const GroupLayoutPreview = () => {
       headers: getHeader(),
     });
     if (response.ok) {
-      router.push("/template-preview");
+      router.push(appendUserCodeToPath("/template-preview", userCode));
     }
   }
 
@@ -201,7 +204,7 @@ const GroupLayoutPreview = () => {
               size="sm"
               onClick={() => {
                 trackEvent(MixpanelEvent.TemplatePreview_All_Groups_Button_Clicked, { pathname });
-                router.push("/template-preview");
+                router.push(appendUserCodeToPath("/template-preview", userCode));
               }}
               className="flex items-center gap-2"
             >

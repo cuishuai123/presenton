@@ -15,6 +15,8 @@ import {
 import { Loader2, Save } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "@/app/hooks/useTranslation";
+import { useUserCode } from "../../hooks/useUserCode";
+import { appendUserCodeToPath } from "../../utils/userCode";
 
 interface SaveLayoutModalProps {
   isOpen: boolean;
@@ -31,6 +33,7 @@ export const SaveLayoutModal: React.FC<SaveLayoutModalProps> = ({
 }) => {
   const { t } = useTranslation();
   const router = useRouter();
+  const { userCode } = useUserCode();
   const [layoutName, setLayoutName] = useState("");
   const [description, setDescription] = useState("");
 
@@ -41,7 +44,7 @@ export const SaveLayoutModal: React.FC<SaveLayoutModalProps> = ({
     const id = await onSave(layoutName.trim(), description.trim());
     if (id) {
       // Redirect to the new template preview page
-      router.push(`/template-preview/custom-${id}`);
+      router.push(appendUserCodeToPath(`/template-preview/custom-${id}`, userCode));
     }
     // Reset form after navigation decision
     setLayoutName("");

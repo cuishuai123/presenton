@@ -38,6 +38,8 @@ import ToolTip from "@/components/ToolTip";
 import { clearPresentationData } from "@/store/slices/presentationGeneration";
 import { clearHistory } from "@/store/slices/undoRedoSlice";
 import { useTranslation } from "@/app/hooks/useTranslation";
+import { useUserCode } from "../../hooks/useUserCode";
+import { appendUserCodeToPath } from "../../utils/userCode";
 
 const Header = ({
   presentation_id,
@@ -47,6 +49,7 @@ const Header = ({
   currentSlide?: number;
 }) => {
   const { t } = useTranslation();
+  const { userCode } = useUserCode();
   const [open, setOpen] = useState(false);
   const [showLoader, setShowLoader] = useState(false);
   const router = useRouter();
@@ -143,7 +146,7 @@ const Header = ({
     dispatch(clearPresentationData());
     dispatch(clearHistory())
     trackEvent(MixpanelEvent.Header_ReGenerate_Button_Clicked, { pathname });
-    router.push(`/presentation?id=${presentation_id}&stream=true`);
+    router.push(appendUserCodeToPath(`/presentation?id=${presentation_id}&stream=true`, userCode));
   };
   const downloadLink = (path: string) => {
     // if we have popup access give direct download if not redirect to the path
@@ -220,7 +223,7 @@ const Header = ({
         onClick={() => {
           const to = `?id=${presentation_id}&mode=present&slide=${currentSlide || 0}`;
           trackEvent(MixpanelEvent.Navigation, { from: pathname, to });
-          router.push(to);
+          router.push(appendUserCodeToPath(to, userCode));
         }}
         variant="ghost"
         className="border border-white font-bold text-white rounded-[32px] transition-all duration-300 group"
@@ -268,7 +271,7 @@ const Header = ({
 
         <Announcement />
         <Wrapper className="flex items-center justify-between py-1">
-          <Link href="/dashboard" className="min-w-[162px]">
+          <Link href={appendUserCodeToPath("/dashboard", userCode)} className="min-w-[162px]">
             <img
               className="h-16"
               src="/logo-white.png"

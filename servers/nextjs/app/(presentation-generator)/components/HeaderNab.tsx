@@ -7,17 +7,20 @@ import { trackEvent, MixpanelEvent } from "@/utils/mixpanel";
 import { RootState } from "@/store/store";
 import { useSelector } from "react-redux";
 import { useTranslation } from "@/app/hooks/useTranslation";
+import { useUserCode } from "@/app/(presentation-generator)/hooks/useUserCode";
+import { appendUserCodeToPath } from "@/app/(presentation-generator)/utils/userCode";
 
 const HeaderNav = () => {
   const { t } = useTranslation();
   const canChangeKeys = useSelector((state: RootState) => state.userConfig.can_change_keys);
   const pathname = usePathname();
+  const { userCode } = useUserCode();
 
   return (
     <div className="flex items-center gap-2">
 
       <Link
-        href="/dashboard"
+        href={appendUserCodeToPath("/dashboard", userCode)}
         prefetch={false}
         className="flex items-center gap-2 px-3 py-2 text-white hover:bg-primary/80 rounded-md transition-colors outline-none"
         role="menuitem"
@@ -30,7 +33,7 @@ const HeaderNav = () => {
       </Link>
       {canChangeKeys && (
         <Link
-          href="/settings"
+          href={appendUserCodeToPath("/settings", userCode)}
           prefetch={false}
           className="flex items-center gap-2 px-3 py-2 text-white hover:bg-primary/80 rounded-md transition-colors outline-none"
           role="menuitem"

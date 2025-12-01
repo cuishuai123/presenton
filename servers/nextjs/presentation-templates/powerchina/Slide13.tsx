@@ -42,7 +42,7 @@ export const Schema = z
       .min(2)
       .max(60)
       .default("一期建设内容（2025.03 - 2026.12）—— 边开发边上线"),
-    phaseOneLeft: PhaseBlockSchema,
+    phaseOneLeft: PhaseBlockSchema.default(PhaseBlockSchema.parse({})),
     phaseOneRightTitle: z
       .string()
       .min(2)

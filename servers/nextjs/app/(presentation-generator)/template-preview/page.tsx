@@ -10,6 +10,8 @@ import { trackEvent, MixpanelEvent } from "@/utils/mixpanel";
 import { getHeader } from "../services/api/header";
 import { toast } from "sonner";
 import { useTranslation } from "@/app/hooks/useTranslation";
+import { useUserCode } from "../hooks/useUserCode";
+import { appendUserCodeToPath } from "../utils/userCode";
 
 const LayoutPreview = () => {
   const { t } = useTranslation();
@@ -23,6 +25,7 @@ const LayoutPreview = () => {
   } = useLayout();
   const router = useRouter();
   const pathname = usePathname();
+  const { userCode } = useUserCode();
 
   const [summaryMap, setSummaryMap] = useState<Record<string, { lastUpdatedAt?: number; name?: string; description?: string }>>({});
 
@@ -113,7 +116,7 @@ const LayoutPreview = () => {
               <h2 className="text-xl font-semibold text-gray-900">{t('templates.customAITemplates')}</h2>
               <button className="text-sm text-gray-800 hover:text-blue-600 transition-colors flex items-center gap-2 group" onClick={() => {
                 trackEvent(MixpanelEvent.Navigation, { from: pathname, to: `/custom-template` });
-                router.push(`/custom-template`)
+                router.push(appendUserCodeToPath(`/custom-template`, userCode))
               }}>
                 {t('templates.createCustomTemplate')}
               </button>
@@ -132,7 +135,7 @@ const LayoutPreview = () => {
                       className="cursor-pointer hover:shadow-md transition-all duration-200 group"
                       onClick={() => {
                         trackEvent(MixpanelEvent.Navigation, { from: pathname, to: `/template-preview/${template.templateID}` });
-                        router.push(`/template-preview/${template.templateID}`)
+                        router.push(appendUserCodeToPath(`/template-preview/${template.templateID}`, userCode))
                       }}
                     >
                       <div className="p-6">
@@ -189,7 +192,7 @@ const LayoutPreview = () => {
                   className="cursor-pointer hover:shadow-md transition-all border-blue-500 duration-200 group"
                   onClick={() => {
                     trackEvent(MixpanelEvent.Navigation, { from: pathname, to: `/custom-template` });
-                    router.push(`/custom-template`)
+                    router.push(appendUserCodeToPath(`/custom-template`, userCode))
                   }}
                 >
                   <div className="p-6">

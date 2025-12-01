@@ -9,32 +9,40 @@ import { PresentationGrid } from "@/app/(presentation-generator)/dashboard/compo
 
 import Header from "@/app/(presentation-generator)/dashboard/components/Header";
 import { useTranslation } from "@/app/hooks/useTranslation";
+import { useUserCode } from "@/app/(presentation-generator)/hooks/useUserCode";
 
 const DashboardPage: React.FC = () => {
   const { t } = useTranslation();
+  const { userCode, isReady } = useUserCode();
   const [presentations, setPresentations] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!isReady) return;
     const loadData = async () => {
-      await fetchPresentations();
+      await fetchPresentations(userCode);
     };
     loadData();
-  }, []);
+  }, [isReady, userCode]);
 
-  const fetchPresentations = async () => {
+  const fetchPresentations = async (code?: string | null) => {
     try {
       setIsLoading(true);
       setError(null);
-      const data = await DashboardApi.getPresentations();
+      if (!code) {
+        setPresentations([]);
+        setError("未获取到用户信息，请重新从问知打开 PPT 助手");
+        return;
+      }
+      const data = await DashboardApi.getPresentations(code);
       data.sort(
         (a: any, b: any) =>
           new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
       );
       setPresentations(data);
     } catch (err) {
-      setError(null);
+      setError("加载演示文稿失败，请重试");
       setPresentations([]);
     } finally {
       setIsLoading(false);
