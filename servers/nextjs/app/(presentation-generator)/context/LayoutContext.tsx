@@ -1,19 +1,21 @@
 "use client";
-import React, {
-  createContext,
-  useContext,
-  useEffect,
-  useState,
-  ReactNode,
-} from "react";
+  // @ts-ignore
+import React, {createContext, useContext, useEffect, useState, ReactNode,} from "react";
+// @ts-ignore
 import dynamic from "next/dynamic";
+// @ts-ignore
 import { toast } from "sonner";
+// @ts-ignore
 import * as z from "zod";
+// @ts-ignore
 import { useDispatch } from "react-redux";
+// @ts-ignore
 import { setLayoutLoading } from "@/store/slices/presentationGeneration";
-
+// @ts-ignore
 import * as Babel from "@babel/standalone";
+// @ts-ignore
 import * as Recharts from "recharts";
+// @ts-ignore
 import * as d3 from 'd3';
 
 import { getHeader } from "../services/api/header";

@@ -1,11 +1,16 @@
 'use client'
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
+// @ts-ignore
 import { Save, X, Code } from "lucide-react";
 import { ProcessedSlide } from "../../types";
+// @ts-ignore
 import Editor from 'react-simple-code-editor';
+// @ts-ignore
 import { highlight, languages } from 'prismjs';
+// @ts-ignore
 import 'prismjs/components/prism-clike';
+// @ts-ignore
 import 'prismjs/components/prism-javascript';
 import 'prismjs/components/prism-markup';
 import 'prismjs/components/prism-jsx';

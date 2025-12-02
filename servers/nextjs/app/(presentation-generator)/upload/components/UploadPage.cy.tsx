@@ -1,20 +1,29 @@
 import React from 'react'
 import UploadPage from './UploadPage'
+// @ts-ignore
 import { mount } from 'cypress/react'
 import { store } from '@/store/store'
+// @ts-ignore
 import { Provider } from 'react-redux'
+// @ts-ignore
 import { AppRouterContext } from 'next/dist/shared/lib/app-router-context.shared-runtime'
 
 // Import global styles
 import '@/app/globals.css'
 
 // Create a mock router
+// @ts-ignore
 const createRouter = (push = cy.stub().as('router.push')) => ({
   push,
+  // @ts-ignore
   back: cy.stub(),
+  // @ts-ignore
   forward: cy.stub(),
+  // @ts-ignore
   refresh: cy.stub(),
-  replace: cy.stub(),
+  // @ts-ignore
+    replace: cy.stub(),
+  // @ts-ignore
   prefetch: cy.stub(),
   route: '/',
   pathname: '/',

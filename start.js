@@ -110,7 +110,7 @@ const setupUserConfigFromEnv = () => {
 
 const startServers = async () => {
   const fastApiProcess = spawn(
-    "python",
+    "python3",
     ["server.py", "--port", fastapiPort.toString(), "--reload", isDev],
     {
       cwd: fastapiDir,
@@ -124,7 +124,7 @@ const startServers = async () => {
   });
 
   const appmcpProcess = spawn(
-    "python",
+    "python3",
     ["mcp_server.py", "--port", appmcpPort.toString()],
     {
       cwd: fastapiDir,
@@ -174,8 +174,9 @@ const startServers = async () => {
 
 // Start nginx service
 const startNginx = () => {
-  const nginxProcess = spawn("service", ["nginx", "start"], {
-    stdio: "inherit",
+  // Alpine 使用直接启动 nginx，不是 service 命令
+  const nginxProcess = spawn("nginx", ["-g", "daemon off;"], {
+    stdio: "ignore", // nginx 日志会输出到 /var/log/nginx/
     env: process.env,
   });
 
@@ -185,9 +186,9 @@ const startNginx = () => {
 
   nginxProcess.on("exit", (code) => {
     if (code === 0) {
-      console.log("Nginx started successfully");
+      console.log("Nginx exited successfully");
     } else {
-      console.error(`Nginx failed to start with exit code: ${code}`);
+      console.error(`Nginx exited with code: ${code}`);
     }
   });
 };

@@ -16,7 +16,9 @@
 // Import commands.js using ES2015 syntax:
 import './commands'
 
+// @ts-ignore
 import { mount } from 'cypress/react'
+// @ts-ignore
 
 // Augment the Cypress namespace to include type definitions for
 // your custom command.

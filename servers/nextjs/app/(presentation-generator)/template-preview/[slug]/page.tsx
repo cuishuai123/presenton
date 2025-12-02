@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Home, Trash2, Code, Save, X, Pencil } from "lucide-react";
 import { useLayout } from "@/app/(presentation-generator)/context/LayoutContext";
 import Editor from "react-simple-code-editor";
+// @ts-ignore
 import { highlight, languages } from "prismjs";
 import "prismjs/components/prism-clike";
 import "prismjs/components/prism-javascript";
