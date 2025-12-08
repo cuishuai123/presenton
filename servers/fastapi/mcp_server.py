@@ -33,7 +33,7 @@ async def main():
         )
 
         # Create an HTTP client that the MCP server will use to call the API
-        api_client = httpx.AsyncClient(base_url="http://127.0.0.1:8000", timeout=60.0)
+        api_client = httpx.AsyncClient(base_url="http://10.221.24.70:8000", timeout=60.0)
 
         # Build MCP server from OpenAPI
         print("DEBUG: Creating FastMCP server from OpenAPI spec...")
