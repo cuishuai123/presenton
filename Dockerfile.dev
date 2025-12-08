@@ -1,42 +1,50 @@
 FROM python:3.11-slim-bookworm
 
-# Install Node.js and npm
-RUN apt-get update && apt-get install -y \
-  nginx \
-  curl \
-  libreoffice \
-  fontconfig \
-  chromium
+# Install Node.js and npm (添加重试机制)
+RUN for i in 1 2 3; do \
+        apt-get update && break || sleep 5; \
+    done && \
+    apt-get install -y --no-install-recommends \
+    nginx \
+    curl \
+    libreoffice \
+    fontconfig \
+    chromium \
+    && rm -rf /var/lib/apt/lists/*
 
-# Install Node.js 20 using NodeSource repository
-RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
-  apt-get install -y nodejs
-
+# Install Node.js 20 using NodeSource repository (添加重试机制)
+RUN for i in 1 2 3; do \
+        curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && break || sleep 10; \
+    done && \
+    apt-get install -y nodejs && \
+    node -v && npm -v && \
+    rm -rf /var/lib/apt/lists/*
 
 # Change working directory
 WORKDIR /app
-
-RUN ls -a
 
 # Set environment variables
 ENV APP_DATA_DIRECTORY=/app_data
 ENV TEMP_DIRECTORY=/tmp/presenton
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 
-# Install ollama
-RUN curl -fsSL http://ollama.com/install.sh | sh
+# Install ollama (可选，如果需要可以取消注释)
+# RUN curl -fsSL https://ollama.com/install.sh | sh
 
-# Install dependencies for FastAPI
-RUN pip install aiohttp aiomysql aiosqlite asyncpg fastapi[standard] \
-  pathvalidate pdfplumber chromadb sqlmodel \
-  anthropic google-genai openai fastmcp dirtyjson
-RUN pip install docling --extra-index-url https://download.pytorch.org/whl/cpu
+# Install dependencies for FastAPI (添加重试机制)
+RUN pip install --no-cache-dir --retries 3 --timeout 100 \
+    aiohttp aiomysql aiosqlite asyncpg fastapi[standard] \
+    pathvalidate pdfplumber chromadb sqlmodel \
+    anthropic google-genai openai fastmcp dirtyjson
+RUN pip install --no-cache-dir --retries 3 --timeout 100 \
+    docling --extra-index-url https://download.pytorch.org/whl/cpu
 
-# Copy nginx configuration
+# Copy necessary files (代码通过 volume 挂载，不需要复制)
+COPY start.js package.json LICENSE NOTICE ./
 COPY nginx.conf /etc/nginx/nginx.conf
 
 # Expose the port
 EXPOSE 80
 
-# Start the servers
+# Start the servers (开发模式)
 CMD ["node", "/app/start.js", "--dev"]
