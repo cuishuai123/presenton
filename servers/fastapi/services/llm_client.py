@@ -8,6 +8,7 @@ from openai import AsyncOpenAI
 from openai.types.chat.chat_completion_chunk import (
     ChatCompletionChunk as OpenAIChatCompletionChunk,
 )
+from openai import APITimeoutError as OpenAITimeoutError
 import httpx
 from google import genai
 from google.genai.types import Content as GoogleContent, Part as GoogleContentPart
@@ -1355,11 +1356,11 @@ class LLMClient:
                 # 成功完成流式响应，跳出重试循环
                 break
                     
-            except (httpx.ConnectTimeout, httpx.ConnectError, httpx.ReadTimeout) as e:
+            except (httpx.ConnectTimeout, httpx.ConnectError, httpx.ReadTimeout, OpenAITimeoutError) as e:
                 retry_count += 1
                 if retry_count < max_retries:
                     wait_time = retry_count * 2  # 指数退避：2秒、4秒、6秒
-                    print(f"WARNING: Connection error (attempt {retry_count}/{max_retries}): {str(e)}")
+                    print(f"WARNING: Connection/Timeout error (attempt {retry_count}/{max_retries}): {str(e)}")
                     print(f"WARNING: Retrying in {wait_time} seconds...")
                     await asyncio.sleep(wait_time)
                     continue
@@ -1371,6 +1372,7 @@ class LLMClient:
             except Exception as e:
                 # 其他错误直接抛出，不重试
                 print(f"ERROR: Unexpected error in stream_structured: {str(e)}")
+                print(f"ERROR: Error type: {type(e).__name__}")
                 raise
 
         if current_id is not None:
