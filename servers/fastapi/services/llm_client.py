@@ -8,6 +8,7 @@ from openai import AsyncOpenAI
 from openai.types.chat.chat_completion_chunk import (
     ChatCompletionChunk as OpenAIChatCompletionChunk,
 )
+import httpx
 from google import genai
 from google.genai.types import Content as GoogleContent, Part as GoogleContentPart
 from google.genai.types import (
@@ -182,10 +183,50 @@ class LLMClient:
                 status_code=400,
                 detail="Custom LLM URL is not set",
             )
-        return AsyncOpenAI(
-            base_url=get_custom_llm_url_env(),
-            api_key=get_custom_llm_api_key_env() or "null",
+        custom_url = get_custom_llm_url_env()
+        custom_api_key = get_custom_llm_api_key_env() or "null"
+        
+        # 打印配置信息用于调试
+        print(f"INFO: Initializing Custom LLM client with URL: {custom_url}")
+        
+        # 设置更长的超时时间，因为自定义LLM服务器可能需要更长时间响应
+        # 连接超时增加到120秒，以应对网络延迟和Docker网络问题
+        timeout = httpx.Timeout(
+            connect=120.0,  # 连接超时120秒（大幅增加以应对网络问题）
+            read=600.0,     # 读取超时600秒（10分钟，适用于长时间运行的流式响应）
+            write=300.0,    # 写入超时300秒（5分钟）
+            pool=120.0      # 连接池超时120秒
         )
+        
+        # 创建自定义 HTTP 客户端配置，允许更长的连接时间
+        http_client = httpx.AsyncClient(
+            timeout=timeout,
+            limits=httpx.Limits(max_keepalive_connections=10, max_connections=100),
+        )
+        
+        try:
+            client = AsyncOpenAI(
+                base_url=custom_url,
+                api_key=custom_api_key,
+                timeout=timeout,
+                max_retries=3,  # 增加最大重试次数到3次
+                http_client=http_client,
+            )
+            print(f"INFO: Custom LLM client initialized successfully")
+            return client
+        except Exception as e:
+            error_msg = str(e)
+            print(f"ERROR: Failed to initialize Custom LLM client: {error_msg}")
+            print(f"ERROR: URL: {custom_url}")
+            print(f"ERROR: Please check:")
+            print(f"  1. LLM server is running and accessible at {custom_url}")
+            print(f"  2. Network connectivity from Docker container to {custom_url}")
+            print(f"  3. Firewall rules allow connections to the LLM server")
+            print(f"  4. If using Docker, ensure network_mode or extra_hosts is configured correctly")
+            raise HTTPException(
+                status_code=500,
+                detail=f"无法初始化自定义LLM客户端。请检查：1) LLM服务器是否在 {custom_url} 运行并可访问 2) Docker容器网络配置是否正确 3) 防火墙规则是否允许连接。错误详情: {error_msg}"
+            )
 
     # ? Prompts
     def _get_system_prompt(self, messages: List[LLMMessage]) -> str:
@@ -1239,70 +1280,98 @@ class LLMClient:
         current_arguments = None
 
         has_response_schema_tool_call = False
-        async for event in await client.chat.completions.create(
-            model=model,
-            messages=[message.model_dump() for message in messages],
-            max_completion_tokens=max_tokens,
-            tools=all_tools,
-            response_format=(
-                {
-                    "type": "json_schema",
-                    "json_schema": (
+        
+        # 添加重试逻辑来处理连接超时
+        max_retries = 3
+        retry_count = 0
+        
+        while retry_count < max_retries:
+            try:
+                async for event in await client.chat.completions.create(
+                    model=model,
+                    messages=[message.model_dump() for message in messages],
+                    max_completion_tokens=max_tokens,
+                    tools=all_tools,
+                    response_format=(
                         {
-                            "name": "ResponseSchema",
-                            "strict": strict,
-                            "schema": response_schema,
-                        }
-                    ),
-                }
-                if not use_tool_calls_for_structured_output
-                else None
-            ),
-            extra_body=extra_body,
-            stream=True,
-        ):
-            event: OpenAIChatCompletionChunk = event
-            if not event.choices:
-                continue
-
-            content_chunk = event.choices[0].delta.content
-            if content_chunk and not use_tool_calls_for_structured_output:
-                yield content_chunk
-
-            tool_call_chunk = event.choices[0].delta.tool_calls
-            if tool_call_chunk:
-                tool_index = tool_call_chunk[0].index
-                tool_id = tool_call_chunk[0].id
-                tool_name = tool_call_chunk[0].function.name
-                tool_arguments = tool_call_chunk[0].function.arguments
-
-                if current_index != tool_index:
-                    tool_calls.append(
-                        OpenAIToolCall(
-                            id=current_id,
-                            type="function",
-                            function=OpenAIToolCallFunction(
-                                name=current_name,
-                                arguments=current_arguments,
+                            "type": "json_schema",
+                            "json_schema": (
+                                {
+                                    "name": "ResponseSchema",
+                                    "strict": strict,
+                                    "schema": response_schema,
+                                }
                             ),
-                        )
-                    )
-                    current_index = tool_index
-                    current_id = tool_id
-                    current_name = tool_name
-                    current_arguments = tool_arguments
-                else:
-                    current_name = tool_name or current_name
-                    current_id = tool_id or current_id
-                    if current_arguments is None:
-                        current_arguments = tool_arguments
-                    elif tool_arguments:
-                        current_arguments += tool_arguments
+                        }
+                        if not use_tool_calls_for_structured_output
+                        else None
+                    ),
+                    extra_body=extra_body,
+                    stream=True,
+                ):
+                    event: OpenAIChatCompletionChunk = event
+                    if not event.choices:
+                        continue
 
-                if current_name == "ResponseSchema":
-                    if tool_arguments:
-                        yield tool_arguments
-                    has_response_schema_tool_call = True
+                    content_chunk = event.choices[0].delta.content
+                    if content_chunk and not use_tool_calls_for_structured_output:
+                        yield content_chunk
+
+                    tool_call_chunk = event.choices[0].delta.tool_calls
+                    if tool_call_chunk:
+                        tool_index = tool_call_chunk[0].index
+                        tool_id = tool_call_chunk[0].id
+                        tool_name = tool_call_chunk[0].function.name
+                        tool_arguments = tool_call_chunk[0].function.arguments
+
+                        if current_index != tool_index:
+                            tool_calls.append(
+                                OpenAIToolCall(
+                                    id=current_id,
+                                    type="function",
+                                    function=OpenAIToolCallFunction(
+                                        name=current_name,
+                                        arguments=current_arguments,
+                                    ),
+                                )
+                            )
+                            current_index = tool_index
+                            current_id = tool_id
+                            current_name = tool_name
+                            current_arguments = tool_arguments
+                        else:
+                            current_name = tool_name or current_name
+                            current_id = tool_id or current_id
+                            if current_arguments is None:
+                                current_arguments = tool_arguments
+                            elif tool_arguments:
+                                current_arguments += tool_arguments
+
+                        if current_name == "ResponseSchema":
+                            if tool_arguments:
+                                yield tool_arguments
+                            has_response_schema_tool_call = True
+                
+                # 成功完成流式响应，跳出重试循环
+                break
+                    
+            except (httpx.ConnectTimeout, httpx.ConnectError, httpx.ReadTimeout) as e:
+                retry_count += 1
+                if retry_count < max_retries:
+                    wait_time = retry_count * 2  # 指数退避：2秒、4秒、6秒
+                    print(f"WARNING: Connection error (attempt {retry_count}/{max_retries}): {str(e)}")
+                    print(f"WARNING: Retrying in {wait_time} seconds...")
+                    await asyncio.sleep(wait_time)
+                    continue
+                else:
+                    # 所有重试都失败，抛出异常
+                    print(f"ERROR: Failed to connect after {max_retries} attempts: {str(e)}")
+                    print(f"ERROR: Please check network connectivity to LLM server")
+                    raise
+            except Exception as e:
+                # 其他错误直接抛出，不重试
+                print(f"ERROR: Unexpected error in stream_structured: {str(e)}")
+                raise
 
         if current_id is not None:
             tool_calls.append(
