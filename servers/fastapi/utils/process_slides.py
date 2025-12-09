@@ -51,7 +51,16 @@ async def process_slide_and_fetch_assets(
 
     for icon_path in icon_paths:
         icon_dict = get_dict_at_path(slide.content, icon_path)
-        icon_dict["__icon_url__"] = results.pop()[0]
+        if not results:
+            # 如果没有结果，使用占位符
+            icon_dict["__icon_url__"] = "/static/icons/placeholder.svg"
+        else:
+            icon_result = results.pop()
+            if icon_result and len(icon_result) > 0:
+                icon_dict["__icon_url__"] = icon_result[0]
+            else:
+                # 如果图标搜索结果为空，使用占位符
+                icon_dict["__icon_url__"] = "/static/icons/placeholder.svg"
         set_dict_at_path(slide.content, icon_path, icon_dict)
 
     return return_assets
@@ -159,7 +168,11 @@ async def process_old_and_new_slides_and_fetch_assets(
 
     for i, new_icon in enumerate(new_icons):
         if new_icons_fetch_status[i]:
-            new_icon_dicts[i]["__icon_url__"] = new_icons[i][0]
+            if new_icons[i] and len(new_icons[i]) > 0:
+                new_icon_dicts[i]["__icon_url__"] = new_icons[i][0]
+            else:
+                # 如果图标搜索结果为空，使用占位符
+                new_icon_dicts[i]["__icon_url__"] = "/static/icons/placeholder.svg"
 
     for i, new_image_dict in enumerate(new_image_dicts):
         set_dict_at_path(new_slide_content, new_image_dict_paths[i], new_image_dict)
