@@ -137,7 +137,10 @@ function convertToTextBox(element: ElementAttributes): PptxTextBoxModel {
     margin: undefined,
     fill,
     position,
-    text_wrap: element.textWrap ?? true,
+    // 使用实际的 textWrap 值
+    // 如果未定义，默认允许换行（长文本需要换行）
+    // 只有在明确设置为 false 时才不换行
+    text_wrap: element.textWrap !== undefined ? element.textWrap : true,
     paragraphs: [paragraph]
   };
 }
@@ -199,7 +202,10 @@ function convertToAutoShapeBox(element: ElementAttributes): PptxAutoShapeBoxMode
     stroke,
     shadow,
     position,
-    text_wrap: element.textWrap ?? true,
+    // 使用实际的 textWrap 值
+    // 如果未定义，默认允许换行（长文本需要换行）
+    // 只有在明确设置为 false 时才不换行
+    text_wrap: element.textWrap !== undefined ? element.textWrap : true,
     border_radius: borderRadius || undefined,
     paragraphs
   };

@@ -2,13 +2,38 @@ const nextConfig = {
   reactStrictMode: false,
   distDir: ".next-build",
   
+  // Webpack configuration to handle pdf-lib
+  webpack: (config, { isServer }) => {
+    if (isServer) {
+      // For server-side, mark pdf-lib as external
+      config.externals = config.externals || [];
+      config.externals.push({
+        'pdf-lib': 'commonjs pdf-lib',
+      });
+    } else {
+      // For client-side, resolve pdf-lib properly
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        path: false,
+        crypto: false,
+      };
+    }
+    return config;
+  },
 
-  // Rewrites for development - proxy font requests to FastAPI backend
+  // Rewrites for development - proxy requests to FastAPI backend
   async rewrites() {
+    const fastApiUrl = process.env.FASTAPI_URL || 'http://localhost:8000';
     return [
       {
         source: '/app_data/fonts/:path*',
-        destination: 'http://localhost:8000/app_data/fonts/:path*',
+        destination: `${fastApiUrl}/app_data/fonts/:path*`,
+      },
+      // Proxy all /api/v1 requests to FastAPI
+      {
+        source: '/api/v1/:path*',
+        destination: `${fastApiUrl}/api/v1/:path*`,
       },
     ];
   },

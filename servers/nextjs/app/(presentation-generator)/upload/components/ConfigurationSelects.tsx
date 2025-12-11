@@ -245,12 +245,13 @@ export function ConfigurationSelects({
         value={config.slides}
         onValueChange={(value) => onConfigChange("slides", value)}
       />
-      <LanguageSelect
+      {/* 隐藏语言切换按钮 */}
+      {/* <LanguageSelect
         value={config.language}
         onValueChange={(value) => onConfigChange("language", value)}
         open={openLanguage}
         onOpenChange={setOpenLanguage}
-      />
+      /> */}
       <ToolTip content={t('common.advancedSettings')}>
 
       <button

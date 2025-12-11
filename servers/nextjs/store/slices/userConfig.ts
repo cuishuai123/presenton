@@ -12,7 +12,7 @@ interface UserConfigState {
 const initialState: UserConfigState = {
   llm_config: {},
   can_change_keys: false,
-  language: 'en',
+  language: 'zh', // 默认使用中文
 }
 
 const userConfigSlice = createSlice({

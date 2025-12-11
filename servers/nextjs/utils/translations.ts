@@ -96,6 +96,13 @@ export type TranslationKey =
   | 'app.initializing'
   | 'app.loadingConfig'
   
+  // Home Page
+  | 'home.saveConfiguration'
+  | 'home.savingConfiguration'
+  | 'home.downloadingModelProgress'
+  | 'home.percentComplete'
+  | 'home.openSourceAIPresentationGenerator'
+  
   // Presentation Page
   | 'presentation.title'
   | 'presentation.present'
@@ -117,6 +124,12 @@ export type TranslationKey =
   | 'presentation.saving'
   | 'presentation.saved'
   | 'presentation.autoSave'
+  | 'presentation.exportError'
+  | 'presentation.exportErrorDesc'
+  | 'presentation.failedToGetPptxModel'
+  | 'presentation.failedToConvertPptxModel'
+  | 'presentation.serverError'
+  | 'presentation.invalidPptxModel'
   
   // Settings Page
   | 'settings.title'
@@ -393,6 +406,13 @@ export const translations: Record<'en' | 'zh', Record<TranslationKey, string>> =
     'app.initializing': 'Initializing Application',
     'app.loadingConfig': 'Loading configuration and checking model availability...',
     
+    // Home Page
+    'home.saveConfiguration': 'Save Configuration',
+    'home.savingConfiguration': 'Saving Configuration...',
+    'home.downloadingModelProgress': 'Downloading Model ({percentage}%)',
+    'home.percentComplete': '{percentage}% Complete',
+    'home.openSourceAIPresentationGenerator': 'Open-source AI presentation generator',
+    
     // Presentation Page
     'presentation.title': 'Presentation',
     'presentation.present': 'Present',
@@ -414,6 +434,12 @@ export const translations: Record<'en' | 'zh', Record<TranslationKey, string>> =
     'presentation.saving': 'Saving...',
     'presentation.saved': 'Saved',
     'presentation.autoSave': 'Auto Save',
+    'presentation.exportError': 'Having trouble exporting!',
+    'presentation.exportErrorDesc': 'We are having trouble exporting your presentation. Please try again.',
+    'presentation.failedToGetPptxModel': 'Failed to get presentation PPTX model',
+    'presentation.failedToConvertPptxModel': 'Failed to convert presentation to PPTX model. Please check if the presentation is valid.',
+    'presentation.serverError': 'Server error',
+    'presentation.invalidPptxModel': 'Invalid PPTX model received from server',
     
     // Settings Page
     'settings.title': 'Settings',
@@ -666,6 +692,13 @@ export const translations: Record<'en' | 'zh', Record<TranslationKey, string>> =
     'app.initializing': '正在初始化应用程序',
     'app.loadingConfig': '正在加载配置并检查模型可用性...',
     
+    // Home Page
+    'home.saveConfiguration': '保存配置',
+    'home.savingConfiguration': '正在保存配置...',
+    'home.downloadingModelProgress': '正在下载模型 ({percentage}%)',
+    'home.percentComplete': '{percentage}% 完成',
+    'home.openSourceAIPresentationGenerator': '开源 AI 演示文稿生成器',
+    
     // Presentation Page
     'presentation.title': '演示文稿',
     'presentation.present': '演示',
@@ -687,6 +720,12 @@ export const translations: Record<'en' | 'zh', Record<TranslationKey, string>> =
     'presentation.saving': '保存中...',
     'presentation.saved': '已保存',
     'presentation.autoSave': '自动保存',
+    'presentation.exportError': '导出遇到问题！',
+    'presentation.exportErrorDesc': '导出演示文稿时遇到问题，请重试。',
+    'presentation.failedToGetPptxModel': '获取演示文稿 PPTX 模型失败',
+    'presentation.failedToConvertPptxModel': '转换演示文稿为 PPTX 模型失败。请检查演示文稿是否有效。',
+    'presentation.serverError': '服务器错误',
+    'presentation.invalidPptxModel': '从服务器接收到无效的 PPTX 模型',
     
     // Settings Page
     'settings.title': '设置',

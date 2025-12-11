@@ -33,6 +33,9 @@ WORKDIR /app
 ENV APP_DATA_DIRECTORY=/app_data
 ENV TEMP_DIRECTORY=/tmp/presenton
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+# 跳过 Puppeteer 的 Chromium 下载（因为已安装系统 Chromium）
+ENV PUPPETEER_SKIP_DOWNLOAD=true
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 
 
 # Install ollama (disabled)

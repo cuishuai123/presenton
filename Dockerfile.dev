@@ -1,3 +1,8 @@
+# 使用国内镜像源拉取 Python 镜像（如果网络有问题）
+# 如果默认源可用，使用: FROM python:3.11-slim-bookworm
+# 如果默认源不可用，尝试以下镜像源之一：
+# FROM registry.cn-hangzhou.aliyuncs.com/acs/python:3.11-slim-bookworm
+# FROM docker.mirrors.sjtug.sjtu.edu.cn/library/python:3.11-slim-bookworm
 FROM python:3.11-slim-bookworm
 
 # Install Node.js and npm (添加重试机制)

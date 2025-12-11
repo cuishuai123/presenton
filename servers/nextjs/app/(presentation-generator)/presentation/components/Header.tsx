@@ -38,8 +38,6 @@ import ToolTip from "@/components/ToolTip";
 import { clearPresentationData } from "@/store/slices/presentationGeneration";
 import { clearHistory } from "@/store/slices/undoRedoSlice";
 import { useTranslation } from "@/app/hooks/useTranslation";
-import { useUserCode } from "../../hooks/useUserCode";
-import { appendUserCodeToPath } from "../../utils/userCode";
 
 const Header = ({
   presentation_id,
@@ -49,7 +47,6 @@ const Header = ({
   currentSlide?: number;
 }) => {
   const { t } = useTranslation();
-  const { userCode } = useUserCode();
   const [open, setOpen] = useState(false);
   const [showLoader, setShowLoader] = useState(false);
   const router = useRouter();
@@ -63,9 +60,46 @@ const Header = ({
 
   const { onUndo, onRedo, canUndo, canRedo } = usePresentationUndoRedo();
 
-  const get_presentation_pptx_model = async (id: string): Promise<PptxPresentationModel> => {
-    const response = await fetch(`/api/presentation_to_pptx_model?id=${id}`);
+  /**
+   * 获取 PPTX 模型，使用混合方案：
+   * 1. 默认：先尝试直接转换（从 FastAPI 数据），失败则自动回退到 Puppeteer
+   * 2. 如果默认方案失败，可以强制使用 Puppeteer 重试
+   */
+  const get_presentation_pptx_model = async (
+    id: string, 
+    forcePuppeteer: boolean = false
+  ): Promise<PptxPresentationModel> => {
+    // 构建 URL：默认方案会自动回退，forcePuppeteer 时强制使用 Puppeteer
+    const url = forcePuppeteer
+      ? `/api/presentation_to_pptx_model?id=${id}&method=puppeteer`
+      : `/api/presentation_to_pptx_model?id=${id}`;
+    
+    console.log(`[PPTX Export] Fetching PPTX model: ${url}`);
+    
+    const response = await fetch(url);
+    
+    if (!response.ok) {
+      let errorMessage = `Failed to get PPTX model (${response.status})`;
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.detail || errorData.message || errorData.error || errorMessage;
+      } catch (e) {
+        errorMessage = response.status === 400 
+          ? t('presentation.failedToGetPptxModel')
+          : `${t('presentation.serverError')}: ${response.status}`;
+      }
+      throw new Error(errorMessage);
+    }
+    
     const pptx_model = await response.json();
+    
+    // 验证返回的是有效的 PPTX 模型（至少应该有 slides 字段）
+    if (!pptx_model || !pptx_model.slides) {
+      throw new Error("Invalid PPTX model received: missing slides field");
+    }
+    
+    console.log(`[PPTX Export] Successfully got PPTX model with ${pptx_model.slides.length} slides`);
+    
     return pptx_model;
   };
 
@@ -75,20 +109,43 @@ const Header = ({
     try {
       setOpen(false);
       setShowLoader(true);
+      
       // Save the presentation data before exporting
       trackEvent(MixpanelEvent.Header_UpdatePresentationContent_API_Call);
       await PresentationGenerationApi.updatePresentationContent(presentationData);
 
-
       trackEvent(MixpanelEvent.Header_GetPptxModel_API_Call);
-      const pptx_model = await get_presentation_pptx_model(presentation_id);
+      
+      let pptx_model: PptxPresentationModel | null = null;
+      let lastError: Error | null = null;
+      
+      // 方案1：尝试默认方案（自动回退：直接转换 -> Puppeteer）
+      try {
+        console.log("[PPTX Export] Attempting default method (with auto-fallback)...");
+        pptx_model = await get_presentation_pptx_model(presentation_id, false);
+      } catch (error: any) {
+        console.warn("[PPTX Export] Default method failed:", error.message);
+        lastError = error;
+        
+        // 方案2：如果默认方案失败，强制使用 Puppeteer 重试
+        try {
+          console.log("[PPTX Export] Retrying with Puppeteer method...");
+          pptx_model = await get_presentation_pptx_model(presentation_id, true);
+        } catch (puppeteerError: any) {
+          console.error("[PPTX Export] Puppeteer method also failed:", puppeteerError.message);
+          lastError = puppeteerError;
+          throw puppeteerError;
+        }
+      }
+      
       if (!pptx_model) {
         throw new Error("Failed to get presentation PPTX model");
       }
+      
       trackEvent(MixpanelEvent.Header_ExportAsPPTX_API_Call);
       const pptx_path = await PresentationGenerationApi.exportAsPPTX(pptx_model);
+      
       if (pptx_path) {
-        // window.open(pptx_path, '_self');
         downloadLink(pptx_path);
       } else {
         throw new Error("No path returned from export");
@@ -96,8 +153,13 @@ const Header = ({
     } catch (error) {
       console.error("Export failed:", error);
       setShowLoader(false);
-      toast.error("Having trouble exporting!", {
-        description:
+      
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : "Unknown error occurred";
+      
+      toast.error(t('presentation.exportError') || "Having trouble exporting!", {
+        description: errorMessage || 
           "We are having trouble exporting your presentation. Please try again.",
       });
     } finally {
@@ -146,7 +208,7 @@ const Header = ({
     dispatch(clearPresentationData());
     dispatch(clearHistory())
     trackEvent(MixpanelEvent.Header_ReGenerate_Button_Clicked, { pathname });
-    router.push(appendUserCodeToPath(`/presentation?id=${presentation_id}&stream=true`, userCode));
+    router.push(`/presentation?id=${presentation_id}&stream=true`);
   };
   const downloadLink = (path: string) => {
     // if we have popup access give direct download if not redirect to the path
@@ -223,7 +285,7 @@ const Header = ({
         onClick={() => {
           const to = `?id=${presentation_id}&mode=present&slide=${currentSlide || 0}`;
           trackEvent(MixpanelEvent.Navigation, { from: pathname, to });
-          router.push(appendUserCodeToPath(to, userCode));
+          router.push(to);
         }}
         variant="ghost"
         className="border border-white font-bold text-white rounded-[32px] transition-all duration-300 group"
@@ -271,7 +333,7 @@ const Header = ({
 
         <Announcement />
         <Wrapper className="flex items-center justify-between py-1">
-          <Link href={appendUserCodeToPath("/dashboard", userCode)} className="min-w-[162px]">
+          <Link href="/dashboard" className="min-w-[162px]">
             <img
               className="h-16"
               src="/logo-white.png"

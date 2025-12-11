@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { setCanChangeKeys, setLLMConfig } from '@/store/slices/userConfig';
 import { hasValidLLMConfig } from '@/utils/storeHelpers';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useDispatch } from 'react-redux';
 import { checkIfSelectedOllamaModelIsPulled } from '@/utils/providerUtils';
 import { LLMConfig } from '@/types/llm_config';
@@ -16,11 +16,18 @@ export function ConfigurationInitializer({ children }: { children: React.ReactNo
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
   const route = usePathname();
+  const searchParams = useSearchParams();
+  const disableRedirect = searchParams.get("disableRedirect") === "1";
 
   // Fetch user config state
   useEffect(() => {
+    // 如果明确要求跳过校验（用于导出场景），仍然执行初始化但不执行重定向
+    if (disableRedirect) {
+      fetchUserConfigStateForExport();
+      return;
+    }
     fetchUserConfigState();
-  }, []);
+  }, [disableRedirect]);
 
   const setLoadingToFalseAfterNavigatingTo = (pathname: string) => {
     const interval = setInterval(() => {
@@ -29,6 +36,31 @@ export function ConfigurationInitializer({ children }: { children: React.ReactNo
         setIsLoading(false);
       }
     }, 500);
+  }
+
+  // 用于导出场景的初始化函数，不执行重定向
+  const fetchUserConfigStateForExport = async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch('/api/can-change-keys');
+      const canChangeKeys = (await response.json()).canChange;
+      dispatch(setCanChangeKeys(canChangeKeys));
+
+      if (canChangeKeys) {
+        const response = await fetch('/api/user-config');
+        const llmConfig = await response.json();
+        if (!llmConfig.LLM) {
+          llmConfig.LLM = 'openai';
+        }
+        dispatch(setLLMConfig(llmConfig));
+      }
+      // 无论配置是否有效，都设置 loading 为 false，不执行重定向
+      setIsLoading(false);
+    } catch (error) {
+      console.error('Error fetching user config for export:', error);
+      // 即使出错也设置 loading 为 false，让页面继续渲染
+      setIsLoading(false);
+    }
   }
 
   const fetchUserConfigState = async () => {
@@ -50,6 +82,11 @@ export function ConfigurationInitializer({ children }: { children: React.ReactNo
         if (llmConfig.LLM === 'ollama') {
           const isPulled = await checkIfSelectedOllamaModelIsPulled(llmConfig.OLLAMA_MODEL);
           if (!isPulled) {
+            // 如果明确要求跳过校验（用于导出场景），不执行重定向
+            if (disableRedirect) {
+              setIsLoading(false);
+              return;
+            }
             router.push('/');
             setLoadingToFalseAfterNavigatingTo('/');
             return;
@@ -58,6 +95,11 @@ export function ConfigurationInitializer({ children }: { children: React.ReactNo
         if (llmConfig.LLM === 'custom') {
           const isAvailable = await checkIfSelectedCustomModelIsAvailable(llmConfig);
           if (!isAvailable) {
+            // 如果明确要求跳过校验（用于导出场景），不执行重定向
+            if (disableRedirect) {
+              setIsLoading(false);
+              return;
+            }
             router.push('/');
             setLoadingToFalseAfterNavigatingTo('/');
             return;
@@ -70,8 +112,13 @@ export function ConfigurationInitializer({ children }: { children: React.ReactNo
           setIsLoading(false);
         }
       } else if (route !== '/') {
+        // 如果明确要求跳过校验（用于导出场景），不执行重定向
+        if (disableRedirect) {
+          setIsLoading(false);
+        } else {
         router.push('/');
         setLoadingToFalseAfterNavigatingTo('/');
+        }
       } else {
         setIsLoading(false);
       }
@@ -106,6 +153,11 @@ export function ConfigurationInitializer({ children }: { children: React.ReactNo
     }
   }
 
+
+  // 如果明确要求跳过校验（用于导出场景），立即返回 children，不等待配置加载
+  if (disableRedirect) {
+    return <>{children}</>;
+  }
 
   if (isLoading) {
     return (

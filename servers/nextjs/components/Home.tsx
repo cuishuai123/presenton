@@ -14,6 +14,7 @@ import {
 import { LLMConfig } from "@/types/llm_config";
 import { trackEvent, MixpanelEvent } from "@/utils/mixpanel";
 import { usePathname } from "next/navigation";
+import { useTranslation } from "@/app/hooks/useTranslation";
 
 // Button state interface
 interface ButtonState {
@@ -26,6 +27,7 @@ interface ButtonState {
 }
 
 export default function Home() {
+  const { t } = useTranslation();
   const router = useRouter();
   const pathname = usePathname();
   const config = useSelector((state: RootState) => state.userConfig);
@@ -42,9 +44,16 @@ export default function Home() {
   const [buttonState, setButtonState] = useState<ButtonState>({
     isLoading: false,
     isDisabled: false,
-    text: "Save Configuration",
+    text: '',
     showProgress: false
   });
+
+  // Initialize button text with translation
+  useEffect(() => {
+    if (!buttonState.isLoading && !buttonState.text) {
+      setButtonState(prev => ({ ...prev, text: t('home.saveConfiguration') }));
+    }
+  }, [t]);
 
   const canChangeKeys = config.can_change_keys;
   const downloadProgress = useMemo(() => {
@@ -61,7 +70,7 @@ export default function Home() {
         ...prev,
         isLoading: true,
         isDisabled: true,
-        text: "Saving Configuration..."
+        text: t('home.savingConfiguration')
       }));
       // API: save config
       trackEvent(MixpanelEvent.Home_SaveConfiguration_API_Call);
@@ -77,23 +86,23 @@ export default function Home() {
           await handleModelDownload();
         }
       }
-      toast.info("Configuration saved successfully");
+  
       setButtonState(prev => ({
         ...prev,
         isLoading: false,
         isDisabled: false,
-        text: "Save Configuration"
+        text: t('home.saveConfiguration')
       }));
       // Track navigation from -> to
       trackEvent(MixpanelEvent.Navigation, { from: pathname, to: "/upload" });
       router.push("/upload");
     } catch (error) {
-      toast.info(error instanceof Error ? error.message : "Failed to save configuration");
+      toast.info(error instanceof Error ? error.message : t('settings.failedToSave'));
       setButtonState(prev => ({
         ...prev,
         isLoading: false,
         isDisabled: false,
-        text: "Save Configuration"
+        text: t('home.saveConfiguration')
       }));
     }
   };
@@ -115,7 +124,7 @@ export default function Home() {
       setButtonState({
         isLoading: true,
         isDisabled: true,
-        text: `Downloading Model (${percentage}%)`,
+        text: t('home.downloadingModelProgress', { percentage }),
         showProgress: true,
         progressPercentage: percentage,
         status: downloadingModel.status
@@ -126,10 +135,10 @@ export default function Home() {
       setTimeout(() => {
         setShowDownloadModal(false);
         setDownloadingModel(null);
-        toast.info("Model downloaded successfully!");
+        toast.info(t('settings.modelDownloaded'));
       }, 2000);
     }
-  }, [downloadingModel]);
+  }, [downloadingModel, t]);
 
   useEffect(() => {
     if (!canChangeKeys) {
@@ -150,7 +159,7 @@ export default function Home() {
             <img src="/Logo.png" alt="Presenton Logo" className="h-12" />
           </div>
           <p className="text-gray-600 text-sm">
-            Open-source AI presentation generator
+            {t('home.openSourceAIPresentationGenerator')}
           </p>
         </div>
 
@@ -182,7 +191,7 @@ export default function Home() {
 
               {/* Title */}
               <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                {downloadingModel.done ? "Download Complete!" : "Downloading Model"}
+                {downloadingModel.done ? t('settings.downloadComplete') : t('settings.downloadingModel')}
               </h3>
 
               {/* Model Name */}
@@ -200,7 +209,7 @@ export default function Home() {
                     />
                   </div>
                   <p className="text-sm text-gray-600 mt-2">
-                    {downloadProgress}% Complete
+                    {t('home.percentComplete', { percentage: downloadProgress })}
                   </p>
                 </div>
               )}
@@ -218,9 +227,9 @@ export default function Home() {
               {/* Status Message */}
               {downloadingModel.status && downloadingModel.status !== "pulled" && (
                 <div className="text-xs text-gray-500">
-                  {downloadingModel.status === "downloading" && "Downloading model files..."}
-                  {downloadingModel.status === "verifying" && "Verifying model integrity..."}
-                  {downloadingModel.status === "pulling" && "Pulling model from registry..."}
+                  {downloadingModel.status === "downloading" && t('settings.downloadingModelFiles')}
+                  {downloadingModel.status === "verifying" && t('settings.verifyingModelIntegrity')}
+                  {downloadingModel.status === "pulling" && t('settings.pullingModelFromRegistry')}
                 </div>
               )}
 
@@ -228,8 +237,8 @@ export default function Home() {
               {downloadingModel.downloaded && downloadingModel.size && (
                 <div className="mt-4 p-3 bg-gray-50 rounded-lg">
                   <div className="flex justify-between text-xs text-gray-600">
-                    <span>Downloaded: {(downloadingModel.downloaded / 1024 / 1024).toFixed(1)} MB</span>
-                    <span>Total: {(downloadingModel.size / 1024 / 1024).toFixed(1)} MB</span>
+                    <span>{t('settings.downloaded')}: {(downloadingModel.downloaded / 1024 / 1024).toFixed(1)} MB</span>
+                    <span>{t('settings.total')}: {(downloadingModel.size / 1024 / 1024).toFixed(1)} MB</span>
                   </div>
                 </div>
               )}

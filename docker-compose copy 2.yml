@@ -75,7 +75,7 @@ services:
   development:
     build:
       context: .
-      dockerfile: Dockerfile.dev.cn  # 使用国内镜像源版本，避免 Docker Hub 拉取问题
+      dockerfile: Dockerfile.dev  # 使用国内镜像源版本，避免 Docker Hub 拉取问题
     ports:
       - "5000:80"
     volumes:

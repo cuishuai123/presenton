@@ -13,6 +13,7 @@ import { DashboardApi } from "../services/api/dashboard";
 import { useLayout } from "../context/LayoutContext";
 import { useFontLoader } from "../hooks/useFontLoader";
 import { useTemplateLayouts } from "../hooks/useTemplateLayouts";
+import { getStoredUserCode } from "../utils/userCode";
 
 
 
@@ -57,6 +58,7 @@ const PresentationPage = ({ presentation_id }: { presentation_id: string }) => {
   // Function to fetch the user slides
   const fetchUserSlides = async () => {
     try {
+      // 直接调用，不带 userCode 参数（FastAPI 的 get_presentation 端点不接受 userCode）
       const data = await DashboardApi.getPresentation(presentation_id);
       dispatch(setPresentationData(data));
       setContentLoading(false);
@@ -69,10 +71,17 @@ const PresentationPage = ({ presentation_id }: { presentation_id: string }) => {
   };
 
   // Regular view
+  // 重要：确保 #presentation-slides-wrapper 元素始终存在
+  // 这个元素是 Puppeteer 导出功能的关键，必须始终存在于 DOM 中
   return (
     <div className="flex overflow-hidden flex-col">
+      <div className="">
+        <div
+          id="presentation-slides-wrapper"
+          className="mx-auto flex flex-col items-center  overflow-hidden  justify-center   "
+        >
       {error ? (
-        <div className="flex flex-col items-center justify-center h-screen bg-gray-100">
+            <div className="flex flex-col items-center justify-center h-screen bg-gray-100 w-full">
           <div
             className="bg-white border border-red-300 text-red-700 px-6 py-8 rounded-lg shadow-lg flex flex-col items-center"
             role="alert"
@@ -96,12 +105,7 @@ const PresentationPage = ({ presentation_id }: { presentation_id: string }) => {
             </Button>
           </div>
         </div>
-      ) : (
-        <div className="">
-          <div
-            id="presentation-slides-wrapper"
-            className="mx-auto flex flex-col items-center  overflow-hidden  justify-center   "
-          >
+          ) : null}
             {!presentationData ||
               loading ||
               contentLoading ||
@@ -132,7 +136,6 @@ const PresentationPage = ({ presentation_id }: { presentation_id: string }) => {
             )}
           </div>
         </div>
-      )}
     </div>
   );
 };

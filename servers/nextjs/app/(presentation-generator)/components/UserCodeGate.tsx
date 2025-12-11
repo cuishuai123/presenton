@@ -14,8 +14,15 @@ export const UserCodeGate: React.FC<{ children: React.ReactNode }> = ({
   const searchString = useMemo(() => searchParams.toString(), [searchParams]);
   const { userCode, isReady } = useUserCode();
   const [isSynced, setIsSynced] = useState(false);
+  const disableGate = searchParams.get("disableRedirect") === "1";
 
   useEffect(() => {
+    // 如果明确要求跳过校验（用于导出场景），完全跳过所有逻辑
+    if (disableGate) {
+      setIsSynced(true);
+      return;
+    }
+
     if (!isReady) {
       // 如果还没准备好，等待一下再检查
       const timer = setTimeout(() => {
@@ -42,7 +49,13 @@ export const UserCodeGate: React.FC<{ children: React.ReactNode }> = ({
     );
     setIsSynced(false);
     router.replace(nextPath, { scroll: false });
-  }, [isReady, userCode, router, pathname, searchParams, searchString]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, disableGate ? [] : [isReady, userCode, router, pathname, searchParams, searchString]);
+
+  // 如果明确要求跳过校验（用于导出场景），立即渲染 children，不等待任何状态
+  if (disableGate) {
+    return <>{children}</>;
+  }
 
   if (!isReady || !isSynced) {
     return null;

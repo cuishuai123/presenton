@@ -52,10 +52,14 @@ export class DashboardApi {
     }
   }
   
-  static async getPresentation(id: string) {
+  static async getPresentation(id: string, userCode?: string) {
     try {
+      // FastAPI 的 get_presentation 端点不接受 userCode 参数
+      // 直接不带 userCode 参数调用，避免 404 错误
+      const url = `/api/v1/ppt/presentation/${id}`;
+      
       const response = await fetch(
-        `/api/v1/ppt/presentation/${id}`,
+        url,
         {
           method: "GET",
         }

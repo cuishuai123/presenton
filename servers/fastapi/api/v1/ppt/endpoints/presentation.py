@@ -492,18 +492,23 @@ async def update_presentation(
 async def export_presentation_as_pptx(
     pptx_model: Annotated[PptxPresentationModel, Body()],
 ):
+    from pathvalidate import sanitize_filename
+    
     temp_dir = TEMP_FILE_SERVICE.create_temp_dir()
 
     pptx_creator = PptxPresentationCreator(pptx_model, temp_dir)
     await pptx_creator.create_ppt()
 
     export_directory = get_exports_directory()
+    # 清理文件名，移除特殊字符
+    safe_name = sanitize_filename(pptx_model.name or str(uuid.uuid4()))
     pptx_path = os.path.join(
-        export_directory, f"{pptx_model.name or uuid.uuid4()}.pptx"
+        export_directory, f"{safe_name}.pptx"
     )
     pptx_creator.save(pptx_path)
 
     return pptx_path
+    
 
 
 @PRESENTATION_ROUTER.post("/export", response_model=PresentationPathAndEditPath)

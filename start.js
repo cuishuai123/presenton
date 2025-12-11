@@ -3,14 +3,7 @@
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { spawn } from "child_process";
-import {
-  existsSync,
-  mkdirSync,
-  rmSync,
-  cpSync,
-  readFileSync,
-  writeFileSync,
-} from "fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -39,72 +32,31 @@ if (!existsSync(userDataDir)) {
 const setupNodeModules = () => {
   return new Promise((resolve, reject) => {
     console.log("Setting up node_modules for Next.js...");
-    
-    // Clean cache only, keep node_modules to preserve PostCSS
-    const cleanProcess = spawn("sh", ["-c", "rm -rf .next-build node_modules/.cache .next 2>/dev/null || true"], {
+    // 设置环境变量，跳过 Puppeteer 的 Chromium 下载（因为 Docker 中已安装系统 Chromium）
+    const env = {
+      ...process.env,
+      PUPPETEER_SKIP_DOWNLOAD: "true",
+      PUPPETEER_SKIP_CHROMIUM_DOWNLOAD: "true",
+    };
+    const npmProcess = spawn("npm", ["install"], {
       cwd: nextjsDir,
       stdio: "inherit",
-      env: process.env,
+      env: env,
     });
-    
-    cleanProcess.on("exit", () => {
-      console.log("Installing dependencies (including postcss, tailwindcss, autoprefixer)...");
-      const npmProcess = spawn("npm", ["install", "--force", "--no-audit", "--no-fund"], {
-        cwd: nextjsDir,
-        stdio: "inherit",
-        env: process.env,
-      });
 
-      npmProcess.on("error", (err) => {
-        console.error("npm install failed:", err);
-        reject(err);
-      });
+    npmProcess.on("error", (err) => {
+      console.error("npm install failed:", err);
+      reject(err);
+    });
 
-      npmProcess.on("exit", (code) => {
-        if (code === 0) {
-          console.log("npm install completed successfully");
-          
-          // Verify postcss is installed
-          const postcssPath = join(nextjsDir, "node_modules", "postcss");
-          if (!existsSync(postcssPath)) {
-            console.error("ERROR: postcss not found! Installing postcss directly...");
-            const postcssInstall = spawn("npm", ["install", "postcss@^8.4.47", "--save", "--no-audit"], {
-              cwd: nextjsDir,
-              stdio: "inherit",
-              env: process.env,
-            });
-            postcssInstall.on("exit", (installCode) => {
-              if (installCode === 0) {
-                console.log("✓ postcss installed");
-                resolve();
-              } else {
-                reject(new Error("Failed to install postcss"));
-              }
-            });
-            return;
-          }
-          
-          console.log("✓ Verified: postcss is installed");
-          
-          // Run verification script
-          try {
-            const verifyScript = spawn("node", ["verify-postcss.cjs"], {
-              cwd: nextjsDir,
-              stdio: "inherit",
-              env: process.env,
-            });
-            verifyScript.on("exit", () => {
-              resolve();
-            });
-          } catch (err) {
-            console.warn("Verification script failed, continuing anyway:", err.message);
-            resolve();
-          }
-        } else {
-          console.error(`npm install failed with exit code: ${code}`);
-          reject(new Error(`npm install failed with exit code: ${code}`));
-        }
-      });
+    npmProcess.on("exit", (code) => {
+      if (code === 0) {
+        console.log("npm install completed successfully");
+        resolve();
+      } else {
+        console.error(`npm install failed with exit code: ${code}`);
+        reject(new Error(`npm install failed with exit code: ${code}`));
+      }
     });
   });
 };
@@ -158,7 +110,13 @@ const setupUserConfigFromEnv = () => {
 const startServers = async () => {
   const fastApiProcess = spawn(
     "python",
-    ["server.py", "--port", fastapiPort.toString(), "--reload", isDev],
+    [
+      "server.py",
+      "--port",
+      fastapiPort.toString(),
+      "--reload",
+      isDev ? "true" : "false",
+    ],
     {
       cwd: fastapiDir,
       stdio: "inherit",
@@ -184,105 +142,202 @@ const startServers = async () => {
     console.error("App MCP process failed to start:", err);
   });
 
-  const nextjsProcess = spawn(
-    "npm",
-    ["run", isDev ? "dev" : "start", "--", "-p", nextjsPort.toString()],
-    {
-      cwd: nextjsDir,
-      stdio: "inherit",
-      env: process.env,
+  // Track process states
+  let fastApiExited = false;
+  let nextjsExited = false;
+  let isShuttingDown = false;
+  let nextjsProcess = null;
+  let nextjsRestartCount = 0;
+  const MAX_RESTART_ATTEMPTS = 5;
+
+  const startNextjs = () => {
+    if (isShuttingDown) {
+      return;
     }
-  );
-
-  nextjsProcess.on("error", (err) => {
-    console.error("Next.js process failed to start:", err);
-  });
-
-  // const ollamaProcess = spawn("ollama", ["serve"], {
-  //   cwd: "/",
-  //   stdio: "inherit",
-  //   env: process.env,
-  // });
-
-  // ollamaProcess.on("error", (err) => {
-  //   console.error("Ollama process failed to start:", err);
-  // });
-
-  // Keep the Node process alive until both servers exit
-  const exitCode = await Promise.race([
-    new Promise((resolve) => fastApiProcess.on("exit", resolve)),
-    new Promise((resolve) => nextjsProcess.on("exit", resolve)),
-    // new Promise((resolve) => ollamaProcess.on("exit", resolve)),
-  ]);
-
-  console.log(`One of the processes exited. Exit code: ${exitCode}`);
-  process.exit(exitCode);
-};
-
-// Start nginx service
-const startNginx = () => {
-  // Try different methods to start nginx
-  const tryStartNginx = (command, args) => {
-    const nginxProcess = spawn(command, args, {
-      stdio: "inherit",
-      env: process.env,
-    });
-
-    nginxProcess.on("error", (err) => {
-      // Try alternative method
-      if (command === "service") {
-        console.log("Trying alternative nginx start method...");
-        tryStartNginx("nginx", []);
-      } else {
-        console.error("Nginx process failed to start:", err);
-        console.log("Nginx may already be running or needs manual start");
+    
+    if (nextjsRestartCount >= MAX_RESTART_ATTEMPTS) {
+      console.error(`Next.js has failed to start ${MAX_RESTART_ATTEMPTS} times. Stopping restart attempts.`);
+      console.error("Please check the Next.js logs above for compilation errors.");
+      return;
+    }
+    
+    nextjsRestartCount++;
+    if (nextjsRestartCount > 1) {
+      console.log(`Starting Next.js process (attempt ${nextjsRestartCount}/${MAX_RESTART_ATTEMPTS})...`);
+    } else {
+      console.log("Starting Next.js process...");
+    }
+    
+    nextjsProcess = spawn(
+      "npm",
+      [
+        "run",
+        isDev ? "dev" : "start",
+        "--",
+        "-H",
+        "127.0.0.1",
+        "-p",
+        nextjsPort.toString(),
+      ],
+      {
+        cwd: nextjsDir,
+        stdio: ["inherit", "inherit", "pipe"], // Capture stderr to see errors
+        env: process.env,
       }
+    );
+
+    // Capture stderr to see compilation errors
+    let errorOutput = "";
+    nextjsProcess.stderr?.on("data", (data) => {
+      const errorText = data.toString();
+      errorOutput += errorText;
+      // Still output to console so user can see errors
+      process.stderr.write(data);
     });
 
-    nginxProcess.on("exit", (code) => {
-      if (code === 0) {
-        console.log("Nginx started successfully");
-      } else if (command === "service") {
-        // Try direct nginx command
-        tryStartNginx("nginx", []);
-      } else {
-        console.log("Nginx may already be running (exit code:", code, ")");
+    nextjsProcess.on("error", (err) => {
+      console.error("Next.js process failed to start:", err);
+    });
+
+    nextjsProcess.on("exit", (code) => {
+      if (isShuttingDown) {
+        return;
+      }
+      nextjsExited = true;
+      console.error(`Next.js process exited with code ${code}`);
+      
+      if (errorOutput) {
+        console.error("Next.js error output:");
+        console.error(errorOutput);
+      }
+      
+      if (code !== 0 && code !== null) {
+        console.error("Next.js process crashed, shutting down...");
+        isShuttingDown = true;
+        process.exit(code || 1);
+      } else if (code === 0) {
+        // Next.js exited normally, but this shouldn't happen in dev mode
+        // This usually indicates a compilation error
+        if (nextjsRestartCount < MAX_RESTART_ATTEMPTS) {
+          console.log(`Next.js exited with code 0 (likely a compilation error), attempting restart in 3 seconds...`);
+          console.log("Check the error output above for compilation details.");
+          setTimeout(() => {
+            if (!isShuttingDown) {
+              nextjsExited = false;
+              startNextjs();
+            }
+          }, 3000);
+        } else {
+          console.error("Next.js failed to start after multiple attempts. Please fix compilation errors and restart manually.");
+        }
       }
     });
   };
 
-  // Start with service command first
-  tryStartNginx("service", ["nginx", "start"]);
+  // Start Next.js initially
+  startNextjs();
+
+  // Try to start Ollama, but don't fail if it's not available
+  let ollamaProcess = null;
+  try {
+    ollamaProcess = spawn("ollama", ["serve"], {
+      cwd: "/",
+      stdio: "inherit",
+      env: process.env,
+    });
+
+    ollamaProcess.on("error", (err) => {
+      console.error("Ollama process failed to start:", err);
+      console.log("Continuing without Ollama...");
+    });
+
+    ollamaProcess.on("exit", (code) => {
+      if (code !== 0 && code !== null) {
+        console.log(`Ollama process exited with code ${code}, continuing...`);
+      }
+    });
+  } catch (err) {
+    console.error("Failed to spawn Ollama process:", err);
+    console.log("Continuing without Ollama...");
+  }
+
+  fastApiProcess.on("exit", (code) => {
+    if (isShuttingDown) {
+      return;
+    }
+    fastApiExited = true;
+    console.error(`FastAPI process exited with code ${code}`);
+    // FastAPI is critical, if it exits abnormally, we should exit
+    if (code !== 0 && code !== null) {
+      console.error("FastAPI process crashed, shutting down...");
+      isShuttingDown = true;
+      process.exit(code || 1);
+    }
+  });
+
+  // Handle graceful shutdown
+  process.on("SIGINT", () => {
+    console.log("\nReceived SIGINT, shutting down gracefully...");
+    isShuttingDown = true;
+    fastApiProcess.kill("SIGTERM");
+    if (nextjsProcess) {
+      nextjsProcess.kill("SIGTERM");
+    }
+    if (ollamaProcess) {
+      ollamaProcess.kill("SIGTERM");
+    }
+    setTimeout(() => {
+      process.exit(0);
+    }, 5000);
+  });
+
+  process.on("SIGTERM", () => {
+    console.log("\nReceived SIGTERM, shutting down gracefully...");
+    isShuttingDown = true;
+    fastApiProcess.kill("SIGTERM");
+    if (nextjsProcess) {
+      nextjsProcess.kill("SIGTERM");
+    }
+    if (ollamaProcess) {
+      ollamaProcess.kill("SIGTERM");
+    }
+    setTimeout(() => {
+      process.exit(0);
+    }, 5000);
+  });
+};
+
+// Start nginx service
+const startNginx = () => {
+  const nginxProcess = spawn("service", ["nginx", "start"], {
+    stdio: "inherit",
+    env: process.env,
+  });
+
+  nginxProcess.on("error", (err) => {
+    console.error("Nginx process failed to start:", err);
+  });
+
+  nginxProcess.on("exit", (code) => {
+    if (code === 0) {
+      console.log("Nginx started successfully");
+    } else {
+      console.error(`Nginx failed to start with exit code: ${code}`);
+    }
+  });
 };
 
 const main = async () => {
-  try {
-    if (isDev) {
-      console.log("Setting up development environment...");
-      await setupNodeModules();
-      console.log("Development environment setup complete!");
-    }
-
-    if (canChangeKeys) {
-      setupUserConfigFromEnv();
-    }
-
-    // Start nginx first
-    console.log("Starting nginx...");
-    startNginx();
-    
-    // Wait a bit for nginx to start
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    // Then start application servers
-    console.log("Starting application servers...");
-    startServers();
-    
-    console.log("All services started. Access the application at http://localhost:5000");
-  } catch (error) {
-    console.error("Failed to start services:", error);
-    process.exit(1);
+  if (isDev) {
+    await setupNodeModules();
   }
+
+  if (canChangeKeys) {
+    setupUserConfigFromEnv();
+  }
+
+  startServers();
+  startNginx();
 };
 
 main();
