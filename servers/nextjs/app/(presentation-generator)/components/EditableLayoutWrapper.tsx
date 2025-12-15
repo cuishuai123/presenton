@@ -440,19 +440,24 @@ const EditableLayoutWrapper: React.FC<EditableLayoutWrapperProps> = ({
             {children}
 
             {/* Render ImageEditor when an image is being edited */}
-            {activeEditor && activeEditor.type === 'image' && (
+            {activeEditor && activeEditor.type === 'image' && (() => {
+                // Extract itemIndex from activeEditor.id (format: "slideIndex-type-dataPath-index")
+                const itemIndex = parseInt(activeEditor.id.split('-').pop() || '0');
+                const propertiesData = properties?.[itemIndex];
+                
+                return (
                 <ImageEditor
                     initialImage={activeEditor.src}
                     slideIndex={slideIndex}
                     promptContent={activeEditor.data?.__image_prompt__ || ''}
-                    imageIdx={0}
-                    properties={null}
+                        imageIdx={itemIndex}
+                        properties={properties}
                     onClose={handleEditorClose}
                     onImageChange={handleImageChange}
                     onFocusPointClick={handleFocusPointClick}
-                >
-                </ImageEditor>
-            )}
+                    />
+                );
+            })()}
 
             {/* Render IconsEditor when an icon is being edited */}
             {activeEditor && activeEditor.type === 'icon' && (

@@ -5,7 +5,7 @@ from models.sql.image_asset import ImageAsset
 from models.sql.slide import SlideModel
 from services.icon_finder_service import ICON_FINDER_SERVICE
 from services.image_generation_service import ImageGenerationService
-from utils.asset_directory_utils import get_images_directory
+from utils.asset_directory_utils import get_images_directory, convert_path_to_url
 from utils.dict_utils import get_dict_at_path, get_dict_paths_with_key, set_dict_at_path
 
 
@@ -44,9 +44,18 @@ async def process_slide_and_fetch_assets(
         result = results.pop()
         if isinstance(result, ImageAsset):
             return_assets.append(result)
-            image_dict["__image_url__"] = result.path
+            # Convert absolute path to URL format for frontend
+            image_dict["__image_url__"] = convert_path_to_url(result.path)
+        elif isinstance(result, str):
+            # If result is already a URL (e.g., from stock providers or placeholder), use it directly
+            if result.startswith('http') or result.startswith('/'):
+                image_dict["__image_url__"] = result
+            else:
+                # Convert absolute path to URL format
+                image_dict["__image_url__"] = convert_path_to_url(result)
         else:
-            image_dict["__image_url__"] = result
+            # Fallback to placeholder if result is not a string or ImageAsset
+            image_dict["__image_url__"] = "/static/images/placeholder.jpg"
         set_dict_at_path(slide.content, image_path, image_dict)
 
     for icon_path in icon_paths:
@@ -161,9 +170,18 @@ async def process_old_and_new_slides_and_fetch_assets(
             fetched_image = new_images[i]
             if isinstance(fetched_image, ImageAsset):
                 new_assets.append(fetched_image)
-                image_url = fetched_image.path
+                # Convert absolute path to URL format for frontend
+                image_url = convert_path_to_url(fetched_image.path)
+            elif isinstance(fetched_image, str):
+                # If result is already a URL (e.g., from stock providers or placeholder), use it directly
+                if fetched_image.startswith('http') or fetched_image.startswith('/'):
+                    image_url = fetched_image
+                else:
+                    # Convert absolute path to URL format
+                    image_url = convert_path_to_url(fetched_image)
             else:
-                image_url = fetched_image
+                # Fallback to placeholder if result is not a string or ImageAsset
+                image_url = "/static/images/placeholder.jpg"
             new_image_dicts[i]["__image_url__"] = image_url
 
     for i, new_icon in enumerate(new_icons):

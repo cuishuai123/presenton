@@ -98,3 +98,18 @@ def get_extended_reasoning_env():
 
 def get_web_grounding_env():
     return os.getenv("WEB_GROUNDING")
+
+
+def get_z_image_turbo_script_path_env():
+    """Get the path to run_prompt.py script"""
+    return os.getenv("Z_IMAGE_TURBO_SCRIPT_PATH")
+
+
+def get_z_image_turbo_host_env():
+    """Get ComfyUI backend host"""
+    return os.getenv("Z_IMAGE_TURBO_HOST", "127.0.0.1")
+
+
+def get_z_image_turbo_port_env():
+    """Get ComfyUI backend port"""
+    return os.getenv("Z_IMAGE_TURBO_PORT", "8187")

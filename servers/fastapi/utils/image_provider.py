@@ -24,6 +24,10 @@ def is_dalle3_selected() -> bool:
     return ImageProvider.DALLE3 == get_selected_image_provider()
 
 
+def is_z_image_turbo_selected() -> bool:
+    return ImageProvider.Z_IMAGE_TURBO == get_selected_image_provider()
+
+
 def get_selected_image_provider() -> ImageProvider | None:
     """
     Get the selected image provider from environment variables.

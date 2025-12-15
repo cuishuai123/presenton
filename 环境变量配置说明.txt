@@ -78,9 +78,10 @@ OLLAMA_MODEL=
 # ========================================
 
 # 图片提供商
-# 可选值：pexels / pixabay
+# 可选值：pexels / pixabay / gemini_flash / dall-e-3 / z-image-turbo
 # 用于在演示文稿中自动添加相关图片
-IMAGE_PROVIDER=pexels
+# z-image-turbo: 使用本地 Z-Image-Turbo 脚本生成图片（需要配置 Z_IMAGE_TURBO_SCRIPT_PATH）
+IMAGE_PROVIDER=z-image-turbo
 
 # Pexels API 密钥（从 https://www.pexels.com/api/ 获取）
 # 用途：自动为幻灯片添加高质量免费图片
@@ -88,6 +89,26 @@ PEXELS_API_KEY=pjSQEq7BYZEd8rGLz7GZ2qnHVdPPh2bMxXzNMWhAhCyNwaRdDDev4P
 
 # Pixabay API 密钥（可选）
 PIXABAY_API_KEY=
+
+# Z-Image-Turbo 配置（当 IMAGE_PROVIDER=z-image-turbo 时使用）
+# 
+# 推荐方式：将 run_prompt.py 脚本放在项目根目录的 scripts/ 文件夹中
+#   例如：no_node-presenton/scripts/run_prompt.py
+#   这样就不需要配置 Z_IMAGE_TURBO_SCRIPT_PATH 了
+#
+# 或者：通过环境变量指定脚本路径（支持绝对路径或相对项目根目录的相对路径）
+#   示例（Windows）：G:\desk\tegongban\pythondemo\run_prompt.py
+#   示例（Linux）：/opt/pythondemo/run_prompt.py
+#   示例（相对路径）：../pythondemo/run_prompt.py
+# Z_IMAGE_TURBO_SCRIPT_PATH=
+
+# ComfyUI 后端主机地址（默认：127.0.0.1）
+# 如果 ComfyUI 在同一台机器上，使用 127.0.0.1 或 localhost
+# 如果在其他机器上，使用实际 IP 地址
+Z_IMAGE_TURBO_HOST=10.221.80.199
+
+# ComfyUI 后端端口（默认：8187）
+Z_IMAGE_TURBO_PORT=8187
 
 # ========================================
 # 高级功能配置

@@ -100,8 +100,8 @@ const ImageEditor = ({
         await PresentationGenerationApi.getPreviousGeneratedImages();
       setPreviousGeneratedImages(response);
     } catch (error: any) {
-      toast.error("Failed to get previous generated images. Please try again.");
-      console.error("error in getting previous generated images", error);
+      toast.error("未能获取到之前的图像,请重试.");
+      console.error("error in getting revious generated images", error);
       setError(
         error.message ||
           "Failed to get previous generated images. Please try again."
@@ -185,6 +185,14 @@ const ImageEditor = ({
   /**
    * Generates new images using AI
    */
+  const translatePrompt = (text: string) => {
+    if (!text) return text;
+    if (text.includes("professional data analyst working on AI project")) {
+      return "在现代办公桌前工作的专业数据分析师，电脑屏幕上展示着算法图表";
+    }
+    return text;
+  };
+
   const handleGenerateImage = async () => {
     if (!prompt) {
       setError("Please enter a prompt");
@@ -194,14 +202,32 @@ const ImageEditor = ({
       setIsGenerating(true);
       setError(null);
       trackEvent(MixpanelEvent.ImageEditor_GenerateImage_API_Call);
+      const translatedPrompt = translatePrompt(prompt);
+      console.log("Generating image with prompt:", translatedPrompt);
       const response = await PresentationGenerationApi.generateImage({
-        prompt: prompt,
+        prompt: translatedPrompt,
       });
 
-      setPreviewImages(response);
+      console.log("Image generation response:", response);
+      
+      if (!response) {
+        throw new Error("No response from image generation API");
+      }
+
+      // Ensure response is a string (URL path)
+      const imageUrl = typeof response === 'string' ? response : response.path || response;
+      
+      if (!imageUrl) {
+        throw new Error("Invalid image URL returned from API");
+      }
+
+      setPreviewImages(imageUrl);
+      toast.success("图片生成成功！");
     } catch (err: any) {
       console.error("Error in image generation", err);
-      setError(err.message || "Failed to generate image. Please try again.");
+      const errorMessage = err.message || err.detail || "Failed to generate image. Please try again.";
+      setError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setIsGenerating(false);
     }
@@ -210,6 +236,33 @@ const ImageEditor = ({
   /**
    * Handles file upload
    */
+  /**
+   * Converts absolute file path to URL path format
+   * Example: "G:\desk\tegongban\no_node-presenton\app_data\images\xxx.png" -> "/app_data/images/xxx.png"
+   */
+  const convertPathToUrl = (filePath: string): string => {
+    if (!filePath) return filePath;
+    
+    // If already a URL path, return as is
+    if (filePath.startsWith('/app_data/') || filePath.startsWith('/static/') || filePath.startsWith('http')) {
+      return filePath;
+    }
+    
+    // Extract filename from absolute path
+    const pathParts = filePath.split(/[/\\]/);
+    const imagesIndex = pathParts.findIndex(part => part === 'images');
+    
+    if (imagesIndex >= 0) {
+      // Reconstruct URL path from images directory onwards
+      const relativePath = pathParts.slice(imagesIndex).join('/');
+      return `/${relativePath}`;
+    }
+    
+    // Fallback: try to extract just the filename
+    const filename = pathParts[pathParts.length - 1];
+    return `/app_data/images/${filename}`;
+  };
+
   const handleFileUpload = async (
     event: React.ChangeEvent<HTMLInputElement>
   ) => {
@@ -232,7 +285,9 @@ const ImageEditor = ({
       setUploadError(null);
       trackEvent(MixpanelEvent.ImageEditor_UploadImage_API_Call);
       const result = await ImagesApi.uploadImage(file);
-      setUploadedImageUrl(result.path);
+      // Convert absolute path to URL path format
+      const imageUrl = convertPathToUrl(result.path);
+      setUploadedImageUrl(imageUrl);
     } catch (err:any) {
       setUploadError("Failed to upload image. Please try again.");
       toast.error(err.message || "Failed to upload image. Please try again.");
@@ -279,36 +334,36 @@ const ImageEditor = ({
           onClick={(e) => e.stopPropagation()}
         >
           <SheetHeader>
-            <SheetTitle>Update Image</SheetTitle>
+            <SheetTitle>更新图片</SheetTitle>
           </SheetHeader>
 
           <div className="mt-6">
             <Tabs defaultValue="generate" className="w-full" onValueChange={handleTabChange}>
               <TabsList className="grid bg-blue-100 border border-blue-300 w-full grid-cols-3 mx-auto">
                 <TabsTrigger className="font-medium" value="generate">
-                  AI Generate
+                  AI 生成
                 </TabsTrigger>
                 <TabsTrigger className="font-medium" value="upload">
-                  Upload
+                  上传
                 </TabsTrigger>
                 <TabsTrigger className="font-medium" value="edit">
-                  Edit
+                  编辑
                 </TabsTrigger>
               </TabsList>
               {/* Generate Tab */}
               <TabsContent value="generate" className="mt-4 space-y-4 overflow-y-auto hide-scrollbar h-[85vh]">
                 <div className="space-y-4">
                   <div>
-                    <h3 className="text-sm font-medium mb-1">Current Prompt</h3>
+                    <h3 className="text-sm font-medium mb-1">当前提示词</h3>
                     <p className="text-sm text-gray-500">{promptContent}</p>
                   </div>
 
                   <div>
                     <h3 className="text-base font-medium mb-2">
-                      Image Description
+                      图片描述
                     </h3>
                     <Textarea
-                      placeholder="Describe the image you want to generate..."
+                      placeholder="描述你想要的图片..."
                       value={prompt}
                       onChange={(e) => setPrompt(e.target.value)}
                       className="min-h-[100px]"
@@ -321,7 +376,7 @@ const ImageEditor = ({
                     disabled={!prompt || isGenerating}
                   >
                     <Wand2 className="w-4 h-4 mr-2" />
-                    {isGenerating ? "Generating..." : "Generate Image"}
+                    {isGenerating ? "生成中..." : "生成图片"}
                   </Button>
 
                   {error && <p className="text-red-500 text-sm">{error}</p>}
@@ -352,7 +407,7 @@ const ImageEditor = ({
                   {previousGeneratedImages.length > 0 && (
                     <div className="mt-4">
                       <h3 className="text-sm font-medium mb-2">
-                        Previous Generated Images
+                        之前生成的图像
                       </h3>
                       <div className="grid grid-cols-2 gap-4  ">
                         {previousGeneratedImages.map((image) => (
@@ -407,11 +462,11 @@ const ImageEditor = ({
                       )}
                       <span className="text-sm text-gray-600">
                         {isUploading
-                          ? "Uploading your image..."
-                          : "Click to upload an image"}
+                          ? "上传图片中..."
+                          : "点击上传图片"}
                       </span>
                       <span className="text-xs text-gray-500 mt-1">
-                        Maximum file size: 5MB
+                        最大文件大小: 5MB
                       </span>
                     </label>
                   </div>
@@ -447,7 +502,7 @@ const ImageEditor = ({
                             >
                               <img
                                 src={uploadedImageUrl}
-                                alt="Uploaded preview"
+                                alt="上传预览"
                                 className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                               />
                               <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-200" />
@@ -463,7 +518,7 @@ const ImageEditor = ({
                     </div>
                   )}
                   <div>
-                    <h3 className="text-sm font-medium mb-2">Uploaded Images:</h3>
+                    <h3 className="text-sm font-medium mb-2">上传的图片:</h3>
                     <div className="grid grid-cols-2 gap-4">
                       {uploadedImagesLoading ? (
                         <div className="flex items-center justify-center">
@@ -474,7 +529,7 @@ const ImageEditor = ({
                           <div key={image.id}>
                             <div
                               onClick={() =>
-                                handleImageChange(image.path)
+                                handleImageChange(convertPathToUrl(image.path))
                               }
                               className="cursor-pointer group aspect-[4/3] rounded-lg overflow-hidden relative border border-gray-200"
                             >
@@ -483,14 +538,14 @@ const ImageEditor = ({
                                 handleDeleteImage(image.id)
                               }}/>
                               <img
-                                src={image.path}
+                                src={convertPathToUrl(image.path)}
                                 alt="Uploaded preview"
                                 className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                               />
                               <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-200" />
                               <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                                 <span className="bg-white/90 px-3 py-1 rounded-full text-xs font-medium">
-                                  Use
+                                  使用
                                 </span>
                               </div>
                             </div>
@@ -504,7 +559,7 @@ const ImageEditor = ({
               </TabsContent>
               <TabsContent value="edit" className="mt-4 space-y-4">
                 <div className="space-y-4">
-                  <h3 className="text-sm font-medium mb-2">Current Image</h3>
+                  <h3 className="text-sm font-medium mb-2">当前图片</h3>
                   <div
                     onClick={(e) => {
                       if (isFocusPointMode) {
@@ -570,7 +625,7 @@ const ImageEditor = ({
                   {/* Object Fit */}
                   {
                     <div>
-                      <h3 className="text-sm font-medium mb-2">Object Fit</h3>
+                      <h3 className="text-sm font-medium mb-2">对象适应</h3>
                       <div className="flex gap-4">
                         <Button
                           variant="outline"
@@ -580,7 +635,7 @@ const ImageEditor = ({
                           )}
                           onClick={() => handleFitChange("cover")}
                         >
-                          Cover
+                          覆盖
                         </Button>
                         <Button
                           variant="outline"
@@ -590,7 +645,7 @@ const ImageEditor = ({
                           )}
                           onClick={() => handleFitChange("contain")}
                         >
-                          Contain
+                          包含
                         </Button>
                         <Button
                           variant="outline"
@@ -599,7 +654,7 @@ const ImageEditor = ({
                           )}
                           onClick={() => handleFitChange("fill")}
                         >
-                          Fill
+                          填充
                         </Button>
                       </div>
                     </div>

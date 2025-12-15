@@ -150,6 +150,9 @@ const setupUserConfigFromEnv = () => {
       process.env.EXTENDED_REASONING || existingConfig.EXTENDED_REASONING,
     WEB_GROUNDING: process.env.WEB_GROUNDING || existingConfig.WEB_GROUNDING,
     USE_CUSTOM_URL: process.env.USE_CUSTOM_URL || existingConfig.USE_CUSTOM_URL,
+    Z_IMAGE_TURBO_SCRIPT_PATH: process.env.Z_IMAGE_TURBO_SCRIPT_PATH || existingConfig.Z_IMAGE_TURBO_SCRIPT_PATH,
+    Z_IMAGE_TURBO_HOST: process.env.Z_IMAGE_TURBO_HOST || existingConfig.Z_IMAGE_TURBO_HOST,
+    Z_IMAGE_TURBO_PORT: process.env.Z_IMAGE_TURBO_PORT || existingConfig.Z_IMAGE_TURBO_PORT,
   };
 
   writeFileSync(userConfigPath, JSON.stringify(userConfig));

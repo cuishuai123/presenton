@@ -656,9 +656,22 @@ class LLMClient:
                     parsed = dict(dirtyjson.loads(content))
                     return parsed
                 except Exception as e:
-                    print(f"ERROR: Failed to parse JSON in _generate_openai_structured")
+                    print("ERROR: Failed to parse JSON in _generate_openai_structured (first pass)")
                     print(f"Raw content (first 500 chars): {repr(content[:500])}...")
                     print(f"Full content length: {len(content)} chars")
+                    # Fallback: try to extract the first JSON object and parse again
+                    import re
+                    try:
+                        match = re.search(r"\{.*\}", content, re.DOTALL)
+                        if match:
+                            cleaned = match.group(0)
+                            parsed = dict(dirtyjson.loads(cleaned))
+                            print("INFO: Parsed JSON successfully after extracting object braces.")
+                            return parsed
+                    except Exception as inner_e:
+                        print("ERROR: Fallback JSON extraction also failed.")
+                        print(f"Fallback content (first 500 chars): {repr(cleaned[:500]) if 'cleaned' in locals() else 'N/A'}")
+                        print(inner_e)
                     raise
             return content
         return None

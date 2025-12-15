@@ -30,6 +30,14 @@ const nextConfig = {
         source: '/app_data/fonts/:path*',
         destination: `${fastApiUrl}/app_data/fonts/:path*`,
       },
+      {
+        source: '/app_data/images/:path*',
+        destination: `${fastApiUrl}/app_data/images/:path*`,
+      },
+      {
+        source: '/static/:path*',
+        destination: `${fastApiUrl}/static/:path*`,
+      },
       // Proxy all /api/v1 requests to FastAPI
       {
         source: '/api/v1/:path*',

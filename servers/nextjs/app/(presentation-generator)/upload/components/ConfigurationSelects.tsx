@@ -38,10 +38,10 @@ interface ConfigurationSelectsProps {
   onConfigChange: (key: keyof PresentationConfig, value: any) => void;
 }
 
-type SlideOption = "5" | "8" | "9" | "10" | "11" | "12" | "13" | "14" | "15" | "16" | "17" | "18" | "19" | "20";
+type SlideOption = "1" |"3" |"5" | "8" | "9" | "10" | "11" | "12" | "13" | "14" | "15" | "16" | "17" | "18" | "19" | "20";
 
 // Constants
-const SLIDE_OPTIONS: SlideOption[] = ["5", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20"];
+const SLIDE_OPTIONS: SlideOption[] = ["1" ,"3" ,"5", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20"];
 
 /**
  * Renders a select component for slide count
@@ -51,6 +51,7 @@ const SlideCountSelect: React.FC<{
   onValueChange: (value: string) => void;
 }> = ({ value, onValueChange }) => {
   const { t } = useTranslation();
+  const [open, setOpen] = useState(false);
   const [customInput, setCustomInput] = useState(
     value && !SLIDE_OPTIONS.includes(value as SlideOption) ? value : ""
   );
@@ -67,11 +68,12 @@ const SlideCountSelect: React.FC<{
     const sanitized = sanitizeToPositiveInteger(customInput);
     if (sanitized && Number(sanitized) > 0) {
       onValueChange(sanitized);
+      setOpen(false); // 关闭下拉菜单
     }
   };
 
   return (
-    <Select value={value || ""} onValueChange={onValueChange} name="slides">
+    <Select value={value || ""} onValueChange={onValueChange} open={open} onOpenChange={setOpen} name="slides">
       <SelectTrigger
         className="w-[180px] font-instrument_sans font-medium bg-blue-100 border-blue-200 focus-visible:ring-blue-300"
         data-testid="slides-select"
