@@ -6,6 +6,44 @@ import { sanitizeFilename } from "@/app/(presentation-generator)/utils/others";
 import { NextResponse, NextRequest } from "next/server";
 import { ApiError } from "@/models/errors";
 
+const DEBUG_ENDPOINT =
+  "http://127.0.0.1:7242/ingest/72ddb510-47f4-46a8-b1b0-944ee47a803c";
+const DEBUG_SESSION_ID = "debug-session";
+const DEBUG_FILE_TARGETS = [
+  path.resolve(process.cwd(), "../../../.cursor/debug.log"),
+  path.resolve(process.cwd(), ".cursor/debug.log"),
+];
+
+function agentLog(payload: {
+  runId: string;
+      hypothesisId: string;
+      location: string;
+      message: string;
+  data: any;
+}) {
+  const body = {
+    sessionId: DEBUG_SESSION_ID,
+    timestamp: Date.now(),
+    ...payload,
+  };
+  const json = JSON.stringify(body);
+
+  // HTTP log (primary)
+  fetch(DEBUG_ENDPOINT, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: json,
+  }).catch(() => {});
+
+  // File log (fallback)
+  DEBUG_FILE_TARGETS.forEach((target) => {
+    fs.promises
+      .mkdir(path.dirname(target), { recursive: true })
+      .then(() => fs.promises.appendFile(target, json + "\n"))
+      .catch(() => {});
+  });
+}
+
 export async function POST(req: NextRequest) {
   let browser: Browser | null = null;
   let page: Page | null = null;
@@ -79,6 +117,16 @@ export async function POST(req: NextRequest) {
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
     const pdfMakerUrl = `${baseUrl}/pdf-maker?id=${id}&stream=true&disableRedirect=1&userCode=export`;
 
+    // #region agent log (hypothesis A: navigation/context)
+    agentLog({
+      runId: "run0",
+      hypothesisId: "A",
+      location: "route.ts:baseUrl",
+      message: "Starting PDF export navigation context",
+      data: { id, title, baseUrl, pdfMakerUrl },
+    });
+    // #endregion
+
     console.log(`[PDF Export] Navigating to: ${pdfMakerUrl}`);
 
     // 使用更宽松的等待策略
@@ -140,6 +188,20 @@ export async function POST(req: NextRequest) {
 
     console.log(`[PDF Export] Successfully on pdf-maker page: ${currentUrl}`);
 
+    // 注入全局字体回退，确保中文可渲染（使用常见 CJK 字体或 Chrome 自带 Noto）
+    try {
+      await page.addStyleTag({
+        content: `
+          * {
+            font-family: "Noto Sans SC", "Noto Sans CJK SC", "Microsoft YaHei", "PingFang SC", "WenQuanYi Micro Hei", "Arial Unicode MS", "SimSun", "Heiti SC", sans-serif !important;
+          }
+        `,
+      });
+      console.log(`[PDF Export] Injected global font fallback`);
+    } catch (e) {
+      console.warn(`[PDF Export] Failed to inject font fallback: ${e}`);
+    }
+
     // 等待页面 DOM 加载完成
     try {
       await page.waitForFunction('() => document.readyState === "complete" || document.readyState === "interactive"', {
@@ -147,6 +209,19 @@ export async function POST(req: NextRequest) {
       });
     } catch (e) {
       console.warn(`[PDF Export] Page readyState check timed out, but continuing...`);
+    }
+
+    // 提前注入中文字体（使用在线 Noto Sans SC）
+    try {
+      await page.addStyleTag({
+        content: `
+          @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&display=swap');
+          * { font-family: "Noto Sans SC", "Microsoft YaHei", "PingFang SC", "WenQuanYi Micro Hei", "Arial Unicode MS", sans-serif !important; }
+        `,
+      });
+      console.log(`[PDF Export] Injected Noto Sans SC font (Google Fonts)`);
+    } catch (e) {
+      console.warn(`[PDF Export] Failed to inject Noto Sans SC font: ${e}`);
     }
 
     // 等待 #presentation-slides-wrapper 元素出现
@@ -226,6 +301,118 @@ export async function POST(req: NextRequest) {
     // 额外等待字体加载
     await new Promise((resolve) => setTimeout(resolve, 1000));
 
+    // 将背景图和 <img> 转为 dataURL，防止外链加载失败导致背景缺失
+    try {
+      const inlineResult = await page.evaluate(async () => {
+        const toDataUrl = async (url: string) => {
+          try {
+            const res = await fetch(url, { credentials: "include" });
+            if (!res.ok) throw new Error(`status ${res.status}`);
+            const ct = res.headers.get("content-type") || "image/png";
+            const buf = await res.arrayBuffer();
+            let binary = "";
+            const bytes = new Uint8Array(buf);
+            for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+            return `data:${ct};base64,${btoa(binary)}`;
+          } catch {
+            return null;
+          }
+        };
+
+        const bgUrls: string[] = [];
+        const imgUrls: string[] = [];
+
+        const extractUrls = (str: string | null) => {
+          if (!str) return;
+          const matches = str.match(/url\\((['"]?)(.*?)\\1\\)/g);
+          if (matches) {
+            matches.forEach((m) => {
+              const inner = m.replace(/url\\((['"]?)(.*?)\\1\\)/, "$2");
+              if (inner && !inner.startsWith("data:")) bgUrls.push(inner);
+            });
+          }
+        };
+
+        const elements = Array.from(document.querySelectorAll("*"));
+        elements.forEach((el) => {
+          const style = window.getComputedStyle(el);
+          extractUrls(style.backgroundImage);
+        });
+
+        const imgs = Array.from(document.images);
+        imgs.forEach((img) => {
+          if (img.src && !img.src.startsWith("data:")) imgUrls.push(img.src);
+        });
+
+        const bgMap: Record<string, string | null> = {};
+        const imgMap: Record<string, string | null> = {};
+
+        await Promise.all(
+          Array.from(new Set(bgUrls)).map(async (u) => {
+            bgMap[u] = await toDataUrl(u);
+          })
+        );
+        await Promise.all(
+          Array.from(new Set(imgUrls)).map(async (u) => {
+            imgMap[u] = await toDataUrl(u);
+          })
+        );
+
+        // 替换背景
+        elements.forEach((el) => {
+          const style = window.getComputedStyle(el);
+          const bg = style.backgroundImage;
+          if (bg) {
+            const matches = bg.match(/url\\((['"]?)(.*?)\\1\\)/g);
+            if (matches) {
+              let newBg = bg;
+              matches.forEach((m) => {
+                const inner = m.replace(/url\\((['"]?)(.*?)\\1\\)/, "$2");
+                if (bgMap[inner]) newBg = newBg.replace(inner, bgMap[inner] as string);
+              });
+              (el as HTMLElement).style.backgroundImage = newBg;
+            }
+          }
+        });
+
+        // 替换 img
+        imgs.forEach((img) => {
+          const data = imgMap[img.src];
+          if (data) img.src = data;
+        });
+
+        const missingBg = Object.entries(bgMap)
+          .filter(([_, v]) => !v)
+          .map(([k]) => k)
+          .slice(0, 5);
+        const missingImg = Object.entries(imgMap)
+          .filter(([_, v]) => !v)
+          .map(([k]) => k)
+          .slice(0, 5);
+
+        return {
+          bgCount: bgUrls.length,
+          imgCount: imgUrls.length,
+          bgInlined: Object.values(bgMap).filter(Boolean).length,
+          imgInlined: Object.values(imgMap).filter(Boolean).length,
+          missingBg,
+          missingImg,
+        };
+      });
+      console.log(`[PDF Export] Inline resources result:`, inlineResult);
+      // #region agent log
+      agentLog({
+        runId: "run1",
+        hypothesisId: "H2",
+        location: "route.ts:inlineResources",
+        message: "Inline background/image summary",
+        data: inlineResult,
+      });
+      // #endregion
+    } catch (e) {
+      console.warn(`[PDF Export] Inline resources failed: ${e}`);
+    }
+
     // 使用与 PPTX 导出相同的方法获取幻灯片包装器
     const slidesWrapper = await page.$("#presentation-slides-wrapper");
     if (!slidesWrapper) {
@@ -301,6 +488,32 @@ export async function POST(req: NextRequest) {
 
     if (slideCount === 0) {
       throw new ApiError("No valid slides found in presentation");
+    }
+
+    if (slideCount > 0) {
+      const firstSlideStyle = await validSlideElements[0].evaluate((el) => {
+        const style = window.getComputedStyle(el as HTMLElement);
+        const parent = el.parentElement;
+        const parentStyle = parent ? window.getComputedStyle(parent) : null;
+        return {
+          hasBg: !!style.backgroundImage && style.backgroundImage !== "none",
+          bg: style.backgroundImage,
+          bgSize: style.backgroundSize,
+          parentHasBg:
+            !!parentStyle?.backgroundImage &&
+            parentStyle.backgroundImage !== "none",
+          parentBg: parentStyle?.backgroundImage || "",
+        };
+      });
+      // #region agent log
+      agentLog({
+        runId: "run1",
+        hypothesisId: "H3",
+        location: "route.ts:firstSlideStyle",
+        message: "First valid slide background info",
+        data: firstSlideStyle,
+      });
+      // #endregion
     }
 
     // 使用标准幻灯片尺寸（1280x720）
@@ -493,11 +706,88 @@ export async function POST(req: NextRequest) {
       });
 
       console.log(`[PDF Export] Slide ${i + 1} final check:`, finalCheck);
+      // #region agent log
+      agentLog({
+        runId: "run1",
+        hypothesisId: "H1",
+        location: `route.ts:slideFinalCheck:${i + 1}`,
+        message: "Slide visibility/content check",
+        data: finalCheck,
+      });
+      // #endregion
 
       if (!finalCheck.visible || !finalCheck.hasContent) {
         console.warn(`[PDF Export] Slide ${i + 1} failed final check, skipping...`);
         continue;
       }
+
+      // Force page/body size to single-slide height to avoid multi-page PDFs
+      await page.evaluate((w, h) => {
+        const html = document.documentElement;
+        const body = document.body;
+        html.style.margin = "0";
+        body.style.margin = "0";
+        html.style.width = `${w}px`;
+        html.style.height = `${h}px`;
+        body.style.width = `${w}px`;
+        body.style.height = `${h}px`;
+        body.style.overflow = "hidden";
+        window.scrollTo(0, 0);
+      }, slideWidth, slideHeight);
+
+      const layoutMetrics = await page.evaluate((currentSlideId) => {
+        const body = document.body;
+        const html = document.documentElement;
+        const slide = document.querySelector(`[data-pdf-slide-id="${currentSlideId}"]`) as HTMLElement | null;
+        const rect = slide?.getBoundingClientRect();
+        return {
+          bodyScrollHeight: body.scrollHeight,
+          bodyOffsetHeight: body.offsetHeight,
+          bodyClientHeight: body.clientHeight,
+          htmlScrollHeight: html.scrollHeight,
+          htmlClientHeight: html.clientHeight,
+          innerHeight: window.innerHeight,
+          scrollY: window.scrollY,
+          slideRect: rect
+            ? { top: rect.top, left: rect.left, width: rect.width, height: rect.height }
+            : null,
+        };
+      }, slideIds[i]);
+      // #region agent log
+      agentLog({
+        runId: "run2",
+        hypothesisId: "H4",
+        location: `route.ts:layoutMetrics:${i + 1}`,
+        message: "Page/slide sizing before pdf",
+        data: layoutMetrics,
+      });
+      // #endregion
+
+      // Capture slide content signature to detect duplication across slides
+      const slideSignature = await slideElement.evaluate((el) => {
+        const style = window.getComputedStyle(el as HTMLElement);
+        const imgs = Array.from(el.querySelectorAll("img")).map((img) => (img as HTMLImageElement).src);
+        const texts = (el.textContent || "").replace(/\s+/g, " ").trim();
+        const bg = style.backgroundImage;
+        const children = el.children.length;
+        return {
+          htmlLength: (el as HTMLElement).innerHTML.length,
+          textSample: texts.slice(0, 120),
+          imgCount: imgs.length,
+          imgSample: imgs.slice(0, 5),
+          bg,
+          children,
+        };
+      });
+      // #region agent log
+      agentLog({
+        runId: "run3",
+        hypothesisId: "H5",
+        location: `route.ts:slideSignature:${i + 1}`,
+        message: "Slide content signature",
+        data: slideSignature,
+      });
+      // #endregion
 
       // 为当前幻灯片生成 PDF 页面
       // 使用标准尺寸，确保一致性
@@ -507,12 +797,13 @@ export async function POST(req: NextRequest) {
         height: `${slideHeight}px`,
         printBackground: true,
         margin: { top: 0, right: 0, bottom: 0, left: 0 },
-        preferCSSPageSize: false,
+        preferCSSPageSize: true,
         displayHeaderFooter: false,
         // 确保字体嵌入，避免乱码
         tagged: false,
         // 使用标准字体，确保中文字符正确显示
         format: undefined, // 使用自定义尺寸
+        pageRanges: "1",
       });
 
       console.log(`[PDF Export] Generated PDF for slide ${i + 1}, size: ${slidePdf.length} bytes`);
@@ -594,10 +885,15 @@ export async function POST(req: NextRequest) {
     console.log(`[PDF Export] PDF generated successfully, size: ${pdfBuffer.length} bytes`);
 
     const sanitizedTitle = sanitizeFilename(title ?? "presentation");
+    const maxNameLength = 80;
+    const truncatedTitle =
+      sanitizedTitle.length > maxNameLength
+        ? sanitizedTitle.slice(0, maxNameLength - 3) + "..."
+        : sanitizedTitle;
     const destinationPath = path.join(
       process.env.APP_DATA_DIRECTORY!,
       "exports",
-      `${sanitizedTitle}.pdf`
+      `${truncatedTitle}.pdf`
     );
     await fs.promises.mkdir(path.dirname(destinationPath), { recursive: true });
     await fs.promises.writeFile(destinationPath, pdfBuffer);

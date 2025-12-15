@@ -10,7 +10,7 @@ import uuid
 
 
 async def download_file(
-    url: str, save_directory: str, headers: Optional[dict] = None
+    url: str, save_directory: str, headers: Optional[dict] = None, timeout: int = 10
 ) -> Optional[str]:
     try:
         os.makedirs(save_directory, exist_ok=True)
@@ -19,7 +19,8 @@ async def download_file(
         filename = os.path.basename(parsed_url.path)
 
         if not filename or "." not in filename:
-            async with aiohttp.ClientSession(trust_env=True) as session:
+            timeout_obj = aiohttp.ClientTimeout(total=timeout)
+            async with aiohttp.ClientSession(trust_env=True, timeout=timeout_obj) as session:
                 async with session.head(url, headers=headers) as response:
                     if response.status == 200:
                         content_disposition = response.headers.get(
@@ -41,7 +42,8 @@ async def download_file(
         filename = filename or str(uuid.uuid4())
         save_path = os.path.join(save_directory, filename)
 
-        async with aiohttp.ClientSession(trust_env=True) as session:
+        timeout_obj = aiohttp.ClientTimeout(total=timeout)
+        async with aiohttp.ClientSession(trust_env=True, timeout=timeout_obj) as session:
             async with session.get(url, headers=headers) as response:
                 if response.status == 200:
                     with open(save_path, "wb") as file:
@@ -53,6 +55,9 @@ async def download_file(
                     print(f"Failed to download file. HTTP status: {response.status}")
                     return None
 
+    except asyncio.TimeoutError:
+        print(f"Timeout downloading file from {url} (timeout: {timeout}s)")
+        return None
     except Exception as e:
         print(f"Error downloading file from {url}: {e}")
         return None

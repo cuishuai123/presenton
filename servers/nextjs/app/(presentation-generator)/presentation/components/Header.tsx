@@ -11,11 +11,6 @@ import {
 import React, { useState } from "react";
 import Wrapper from "@/components/Wrapper";
 import { useRouter, usePathname } from "next/navigation";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import { PresentationGenerationApi } from "../../services/api/presentation-generation";
 import { OverlayLoader } from "@/components/ui/overlay-loader";
 import { useDispatch, useSelector } from "react-redux";
@@ -47,7 +42,6 @@ const Header = ({
   currentSlide?: number;
 }) => {
   const { t } = useTranslation();
-  const [open, setOpen] = useState(false);
   const [showLoader, setShowLoader] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
@@ -107,7 +101,6 @@ const Header = ({
     if (isStreaming) return;
 
     try {
-      setOpen(false);
       setShowLoader(true);
       
       // Save the presentation data before exporting
@@ -170,39 +163,12 @@ const Header = ({
   const handleExportPdf = async () => {
     if (isStreaming) return;
 
-    try {
       setOpen(false);
-      setShowLoader(true);
-      // Save the presentation data before exporting
-      trackEvent(MixpanelEvent.Header_UpdatePresentationContent_API_Call);
-      await PresentationGenerationApi.updatePresentationContent(presentationData);
-
-      trackEvent(MixpanelEvent.Header_ExportAsPDF_API_Call);
-      const response = await fetch('/api/export-as-pdf', {
-        method: 'POST',
-        body: JSON.stringify({
-          id: presentation_id,
-          title: presentationData?.title,
-        })
+    trackEvent(MixpanelEvent.Header_Export_PDF_Button_Clicked, { pathname });
+    
+    toast.info("施工中.敬请期待", {
+      description: "PDF 导出功能正在开发中，敬请期待。",
       });
-
-      if (response.ok) {
-        const { path: pdfPath } = await response.json();
-        // window.open(pdfPath, '_blank');
-        downloadLink(pdfPath);
-      } else {
-        throw new Error("Failed to export PDF");
-      }
-
-    } catch (err) {
-      console.error(err);
-      toast.error("Having trouble exporting!", {
-        description:
-          "We are having trouble exporting your presentation. Please try again.",
-      });
-    } finally {
-      setShowLoader(false);
-    }
   };
   const handleReGenerate = () => {
     dispatch(clearPresentationData());
@@ -211,6 +177,24 @@ const Header = ({
     router.push(`/presentation?id=${presentation_id}&stream=true`);
   };
   const downloadLink = (path: string) => {
+    // 如果在 iframe 中，尝试通过 postMessage 通知父窗口下载
+    if (window.self !== window.top) {
+      try {
+        window.parent.postMessage(
+          {
+            type: 'DOWNLOAD_FILE',
+            url: path,
+            filename: path.split('/').pop() || 'download'
+          },
+          '*' // 允许跨域，父窗口会验证 origin
+        );
+        console.log('[Download] Sent download request to parent window:', path);
+        return;
+      } catch (e) {
+        console.warn('[Download] Failed to send postMessage, falling back to direct download:', e);
+      }
+    }
+    
     // if we have popup access give direct download if not redirect to the path
     if (window.opener) {
       window.open(path, '_blank');
@@ -220,36 +204,13 @@ const Header = ({
       link.download = path.split('/').pop() || 'download';
       document.body.appendChild(link);
       link.click();
+      // 清理临时元素
+      setTimeout(() => {
+        document.body.removeChild(link);
+      }, 100);
     }
   };
 
-  const ExportOptions = ({ mobile }: { mobile: boolean }) => (
-    <div className={`space-y-2 max-md:mt-4 ${mobile ? "" : "bg-white"} rounded-lg`}>
-      <Button
-        onClick={() => {
-          trackEvent(MixpanelEvent.Header_Export_PDF_Button_Clicked, { pathname });
-          handleExportPdf();
-        }}
-        variant="ghost"
-        className={`pb-4 border-b rounded-none border-gray-300 w-full flex justify-start text-[#5146E5] ${mobile ? "bg-white py-6 border-none rounded-lg" : ""}`} >
-        <Image src={PDFIMAGE} alt="pdf export" width={30} height={30} />
-        {t('presentation.exportPDF')}
-      </Button>
-      <Button
-        onClick={() => {
-          trackEvent(MixpanelEvent.Header_Export_PPTX_Button_Clicked, { pathname });
-          handleExportPptx();
-        }}
-        variant="ghost"
-        className={`w-full flex justify-start text-[#5146E5] ${mobile ? "bg-white py-6" : ""}`}
-      >
-        <Image src={PPTXIMAGE} alt="pptx export" width={30} height={30} />
-        {t('presentation.exportPPTX')}
-      </Button>
-
-
-    </div>
-  );
 
   const MenuItems = ({ mobile }: { mobile: boolean }) => (
     <div className="flex flex-col lg:flex-row items-center gap-4">
@@ -294,27 +255,32 @@ const Header = ({
         {t('presentation.present')}
       </Button>
 
-      {/* Desktop Export Button with Popover */}
-
-      <div style={{
-        zIndex: 100
-      }} className="hidden lg:block relative ">
-        <Popover open={open} onOpenChange={setOpen} >
-          <PopoverTrigger asChild>
-            <Button className={`border py-5 text-[#5146E5] font-bold rounded-[32px] transition-all duration-500 hover:border hover:bg-[#5146E5] hover:text-white w-full ${mobile ? "" : "bg-white"}`}>
+      {/* Desktop Export Button - Direct PPTX Export */}
+      <div className="hidden lg:block">
+        <Button 
+          onClick={() => {
+            trackEvent(MixpanelEvent.Header_Export_PPTX_Button_Clicked, { pathname });
+            handleExportPptx();
+          }}
+          className={`border py-5 text-[#5146E5] font-bold rounded-[32px] transition-all duration-500 hover:border hover:bg-[#5146E5] hover:text-white w-full bg-white`}
+        >
               <SquareArrowOutUpRight className="w-4 h-4 mr-1" />
               {t('presentation.export')}
             </Button>
-          </PopoverTrigger>
-          <PopoverContent align="end" className="w-[250px] space-y-2 py-3 px-2 ">
-            <ExportOptions mobile={false} />
-          </PopoverContent>
-        </Popover>
       </div>
 
-      {/* Mobile Export Section */}
-      <div className="lg:hidden flex flex-col w-full">
-        <ExportOptions mobile={true} />
+      {/* Mobile Export Button - Direct PPTX Export */}
+      <div className="lg:hidden">
+        <Button 
+          onClick={() => {
+            trackEvent(MixpanelEvent.Header_Export_PPTX_Button_Clicked, { pathname });
+            handleExportPptx();
+          }}
+          className="border py-5 text-[#5146E5] font-bold rounded-[32px] transition-all duration-500 hover:border hover:bg-[#5146E5] hover:text-white w-full bg-white"
+        >
+          <SquareArrowOutUpRight className="w-4 h-4 mr-1" />
+          {t('presentation.export')}
+        </Button>
       </div>
     </div>
   );

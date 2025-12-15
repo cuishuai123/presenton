@@ -44,8 +44,43 @@ from utils.image_utils import (
     set_image_opacity,
 )
 import uuid
+import shutil
 
 BLANK_SLIDE_LAYOUT = 6
+
+
+def create_placeholder_image(save_path: str, width: int = 800, height: int = 600) -> str:
+    """Create a simple placeholder image if it doesn't exist"""
+    if os.path.exists(save_path):
+        return save_path
+    
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+    
+    # Create a simple gray placeholder image
+    placeholder = Image.new('RGB', (width, height), color=(200, 200, 200))
+    
+    # Add some text or pattern (optional)
+    from PIL import ImageDraw, ImageFont
+    draw = ImageDraw.Draw(placeholder)
+    
+    # Draw a simple border
+    draw.rectangle([10, 10, width-10, height-10], outline=(150, 150, 150), width=2)
+    
+    # Try to add text (if font is available)
+    try:
+        # Try to use a default font
+        font = ImageFont.load_default()
+        text = "Image Placeholder"
+        bbox = draw.textbbox((0, 0), text, font=font)
+        text_width = bbox[2] - bbox[0]
+        text_height = bbox[3] - bbox[1]
+        position = ((width - text_width) // 2, (height - text_height) // 2)
+        draw.text(position, text, fill=(100, 100, 100), font=font)
+    except:
+        pass
+    
+    placeholder.save(save_path, 'JPEG', quality=85)
+    return save_path
 
 
 class PptxPresentationCreator:
@@ -104,11 +139,20 @@ class PptxPresentationCreator:
         if image_urls:
             image_paths = await download_files(image_urls, self._temp_dir)
 
+            # Create placeholder image path
+            placeholder_path = os.path.join(self._temp_dir, "placeholder.jpg")
+            create_placeholder_image(placeholder_path)
+
             for each_shape, each_image_path in zip(
                 models_with_network_asset, image_paths
             ):
                 if each_image_path:
                     each_shape.picture.path = each_image_path
+                    each_shape.picture.is_network = False
+                else:
+                    # Use placeholder if download failed
+                    print(f"Using placeholder image for failed download: {each_shape.picture.path}")
+                    each_shape.picture.path = placeholder_path
                     each_shape.picture.is_network = False
 
     async def create_ppt(self):

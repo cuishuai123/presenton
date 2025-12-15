@@ -1709,20 +1709,15 @@ async function getElementAttributes(
       
       // 判断文本是否应该换行：
       // 1. 如果明确设置了 nowrap 或 pre，不换行
-      // 2. 否则，默认允许换行（特别是对于长文本）
-      // 3. 如果文本内容包含换行符（\n 或 \r），肯定需要换行
-      // 4. 如果元素高度明显大于单行高度，说明已经换行了，需要换行
-      // 5. 如果文本溢出（scrollWidth > offsetWidth），需要换行
-      // 6. 如果文本很长（超过30个字符），即使当前没有换行，也应该允许换行
+      // 2. 否则，仅当存在换行符、实际换行或溢出时才换行，避免无必要的自动换行
       const hasExplicitLineBreaks = textContent.includes("\n") || textContent.includes("\r");
       const hasTextWrapping = elementHeight > computedLineHeight * 1.5;
       const hasTextOverflow = scrollWidth > elementWidth;
-      const isLongText = textContent.trim().length > 30; // 超过30个字符认为是长文本，应该允许换行
+      const isLongText = textContent.trim().length > 30;
       
       // 如果明确设置了 nowrap，则不换行
-      // 否则，默认允许换行（特别是对于长文本、已换行、溢出或包含换行符的情况）
-      // 对于短文本且没有换行的情况，也允许换行（因为 PPTX 中可能需要根据容器宽度自动换行）
-      const textWrap = !isNowrap;
+      // 否则，仅在需要时（有换行符、已换行或溢出）才换行，能单行展示则保持单行
+      const textWrap = !isNowrap && (hasExplicitLineBreaks || hasTextWrapping || hasTextOverflow);
       
       // 调试日志：记录长文本的换行判断
       if (isLongText || hasTextWrapping || hasTextOverflow) {
