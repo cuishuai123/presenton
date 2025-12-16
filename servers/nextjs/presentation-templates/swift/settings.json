@@ -1,5 +1,5 @@
 {
-  "description": "Swift layouts for presentations",
+  "description": "快速布局，适用于快速生成演示文稿",
   "ordered": false,
   "default": false
 }

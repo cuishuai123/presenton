@@ -40,16 +40,23 @@ function convertTextAlignToPptxAlignment(textAlign?: string): PptxAlignment | un
 function convertLineHeightToRelative(lineHeight?: number, fontSize?: number): number | undefined {
   if (!lineHeight) return undefined;
 
-  let calculatedLineHeight = 1.2;
+  // 如果 lineHeight < 10，认为是相对值（如 1.5、1.2 等）
+  // 如果 lineHeight >= 10，认为是绝对值（像素值），需要转换为相对值
   if (lineHeight < 10) {
-    calculatedLineHeight = lineHeight;
+    // 已经是相对值，直接返回，保留原始行距
+    return Math.round(lineHeight * 100) / 100;
   }
 
+  // 绝对值（像素值），转换为相对值
   if (fontSize && fontSize > 0) {
-    calculatedLineHeight = Math.round((lineHeight / fontSize) * 100) / 100;
+    const relativeLineHeight = lineHeight / fontSize;
+    return Math.round(relativeLineHeight * 100) / 100;
   }
 
-  return calculatedLineHeight - 0.3
+  // 如果没有 fontSize，假设默认字体大小 16px
+  const defaultFontSize = 16;
+  const relativeLineHeight = lineHeight / defaultFontSize;
+  return Math.round(relativeLineHeight * 100) / 100;
 }
 
 export function convertElementAttributesToPptxSlides(
@@ -140,7 +147,8 @@ function convertToTextBox(element: ElementAttributes): PptxTextBoxModel {
     // 使用实际的 textWrap 值
     // 如果未定义，默认允许换行（长文本需要换行）
     // 只有在明确设置为 false 时才不换行
-    text_wrap: element.textWrap !== undefined ? element.textWrap : true,
+    // 对于长文本（超过30字符），强制启用换行
+    text_wrap: element.textWrap === false ? false : true,
     paragraphs: [paragraph]
   };
 }
@@ -205,7 +213,8 @@ function convertToAutoShapeBox(element: ElementAttributes): PptxAutoShapeBoxMode
     // 使用实际的 textWrap 值
     // 如果未定义，默认允许换行（长文本需要换行）
     // 只有在明确设置为 false 时才不换行
-    text_wrap: element.textWrap !== undefined ? element.textWrap : true,
+    // 对于长文本（超过30字符），强制启用换行
+    text_wrap: element.textWrap === false ? false : true,
     border_radius: borderRadius || undefined,
     paragraphs
   };

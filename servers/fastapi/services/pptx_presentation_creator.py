@@ -9,6 +9,7 @@ from pptx import Presentation
 from pptx.shapes.autoshape import Shape
 from pptx.slide import Slide
 from pptx.text.text import _Paragraph, TextFrame, Font, _Run
+from pptx.enum.text import MSO_AUTO_SIZE
 from pptx.opc.constants import RELATIONSHIP_TYPE as RT
 from lxml.etree import fromstring, tostring
 from PIL import Image
@@ -280,6 +281,8 @@ class PptxPresentationCreator:
 
         textbox = autoshape.text_frame
         textbox.word_wrap = autoshape_box_model.text_wrap
+        # 禁用自动调整大小，确保文本在固定宽度内换行
+        textbox.auto_size = MSO_AUTO_SIZE.NONE
 
         self.apply_fill_to_shape(autoshape, autoshape_box_model.fill)
         self.apply_margin_to_text_box(textbox, autoshape_box_model.margin)
@@ -297,6 +300,8 @@ class PptxPresentationCreator:
 
         textbox = textbox_shape.text_frame
         textbox.word_wrap = textbox_model.text_wrap
+        # 禁用自动调整大小，确保文本在固定宽度内换行
+        textbox.auto_size = MSO_AUTO_SIZE.NONE
 
         self.apply_fill_to_shape(textbox_shape, textbox_model.fill)
         self.apply_margin_to_text_box(textbox, textbox_model.margin)

@@ -12,6 +12,8 @@ async def get_available_models(
     api_key: Annotated[str, Body()],
 ):
     try:
+        print(f"Request to fetch models from {url}")
+        print(f"API key: {api_key}")
         return await list_available_openai_compatible_models(url, api_key)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

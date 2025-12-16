@@ -41,70 +41,80 @@ const setupNodeModules = () => {
     console.log("Setting up node_modules for Next.js...");
     
     // Clean cache only, keep node_modules to preserve PostCSS
-    const cleanProcess = spawn("sh", ["-c", "rm -rf .next-build node_modules/.cache .next 2>/dev/null || true"], {
+    // Use cross-platform method instead of sh command
+    try {
+      const dirsToRemove = [".next-build", "node_modules/.cache", ".next"];
+      dirsToRemove.forEach((dir) => {
+        const fullPath = join(nextjsDir, dir);
+        if (existsSync(fullPath)) {
+          try {
+            rmSync(fullPath, { recursive: true, force: true });
+          } catch (err) {
+            // Ignore errors, continue with other directories
+          }
+        }
+      });
+    } catch (err) {
+      // Ignore cleanup errors, continue with installation
+    }
+    
+    // Proceed with npm install
+    console.log("Installing dependencies (including postcss, tailwindcss, autoprefixer)...");
+    const npmProcess = spawn("npm", ["install", "--force", "--no-audit", "--no-fund"], {
       cwd: nextjsDir,
       stdio: "inherit",
       env: process.env,
     });
-    
-    cleanProcess.on("exit", () => {
-      console.log("Installing dependencies (including postcss, tailwindcss, autoprefixer)...");
-      const npmProcess = spawn("npm", ["install", "--force", "--no-audit", "--no-fund"], {
-        cwd: nextjsDir,
-        stdio: "inherit",
-        env: process.env,
-      });
 
-      npmProcess.on("error", (err) => {
-        console.error("npm install failed:", err);
-        reject(err);
-      });
+    npmProcess.on("error", (err) => {
+      console.error("npm install failed:", err);
+      reject(err);
+    });
 
-      npmProcess.on("exit", (code) => {
-        if (code === 0) {
-          console.log("npm install completed successfully");
-          
-          // Verify postcss is installed
-          const postcssPath = join(nextjsDir, "node_modules", "postcss");
-          if (!existsSync(postcssPath)) {
-            console.error("ERROR: postcss not found! Installing postcss directly...");
-            const postcssInstall = spawn("npm", ["install", "postcss@^8.4.47", "--save", "--no-audit"], {
-              cwd: nextjsDir,
-              stdio: "inherit",
-              env: process.env,
-            });
-            postcssInstall.on("exit", (installCode) => {
-              if (installCode === 0) {
-                console.log("✓ postcss installed");
-                resolve();
-              } else {
-                reject(new Error("Failed to install postcss"));
-              }
-            });
-            return;
-          }
-          
-          console.log("✓ Verified: postcss is installed");
-          
-          // Run verification script
-          try {
-            const verifyScript = spawn("node", ["verify-postcss.cjs"], {
-              cwd: nextjsDir,
-              stdio: "inherit",
-              env: process.env,
-            });
-            verifyScript.on("exit", () => {
+    npmProcess.on("exit", (code) => {
+      if (code === 0) {
+        console.log("npm install completed successfully");
+        
+        // Verify postcss is installed
+        const postcssPath = join(nextjsDir, "node_modules", "postcss");
+        if (!existsSync(postcssPath)) {
+          console.error("ERROR: postcss not found! Installing postcss directly...");
+          const postcssInstall = spawn("npm", ["install", "postcss@^8.4.47", "--save", "--no-audit"], {
+            cwd: nextjsDir,
+            stdio: "inherit",
+            env: process.env,
+          });
+          postcssInstall.on("exit", (installCode) => {
+            if (installCode === 0) {
+              console.log("✓ postcss installed");
               resolve();
-            });
-          } catch (err) {
-            console.warn("Verification script failed, continuing anyway:", err.message);
-            resolve();
-          }
-        } else {
-          console.error(`npm install failed with exit code: ${code}`);
-          reject(new Error(`npm install failed with exit code: ${code}`));
+            } else {
+              reject(new Error("Failed to install postcss"));
+            }
+          });
+          return;
         }
-      });
+        
+        console.log("✓ Verified: postcss is installed");
+        
+        // Run verification script
+        try {
+          const verifyScript = spawn("node", ["verify-postcss.cjs"], {
+            cwd: nextjsDir,
+            stdio: "inherit",
+            env: process.env,
+          });
+          verifyScript.on("exit", () => {
+            resolve();
+          });
+        } catch (err) {
+          console.warn("Verification script failed, continuing anyway:", err.message);
+          resolve();
+        }
+      } else {
+        console.error(`npm install failed with exit code: ${code}`);
+        reject(new Error(`npm install failed with exit code: ${code}`));
+      }
     });
   });
 };
@@ -152,16 +162,21 @@ const setupUserConfigFromEnv = () => {
     USE_CUSTOM_URL: process.env.USE_CUSTOM_URL || existingConfig.USE_CUSTOM_URL,
     Z_IMAGE_TURBO_SCRIPT_PATH: process.env.Z_IMAGE_TURBO_SCRIPT_PATH || existingConfig.Z_IMAGE_TURBO_SCRIPT_PATH,
     Z_IMAGE_TURBO_HOST: process.env.Z_IMAGE_TURBO_HOST || existingConfig.Z_IMAGE_TURBO_HOST,
-    Z_IMAGE_TURBO_PORT: process.env.Z_IMAGE_TURBO_PORT || existingConfig.Z_IMAGE_TURBO_PORT,
+    Z_IMAGE_TURBO_PORT: process.env.Z_IMAGE_TURBO_PORT || existingConfig.Z_IMAGE_TURBO_PORT
   };
 
   writeFileSync(userConfigPath, JSON.stringify(userConfig));
 };
 
 const startServers = async () => {
+  // Build FastAPI arguments correctly
+  // server.py expects --reload as a string "true" or "false"
+  const fastApiArgs = ["server.py", "--port", fastapiPort.toString()];
+  fastApiArgs.push("--reload", isDev ? "true" : "false");
+  
   const fastApiProcess = spawn(
     "python",
-    ["server.py", "--port", fastapiPort.toString(), "--reload", isDev],
+    fastApiArgs,
     {
       cwd: fastapiDir,
       stdio: "inherit",

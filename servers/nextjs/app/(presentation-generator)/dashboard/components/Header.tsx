@@ -25,11 +25,11 @@ const Header = () => {
           <div className="flex items-center gap-3">
             {(pathname !== "/upload" && pathname !== "/dashboard") && <BackBtn />}
             <Link href={withUserCode("/dashboard")} onClick={() => trackEvent(MixpanelEvent.Navigation, { from: pathname, to: "/dashboard" })}>
-              <img
+              {/* <img
                 src="/logo-white.png"
                 alt="Presentation logo"
                 className="h-16"
-              />
+              /> */}
             </Link>
           </div>
           <div className="flex items-center gap-3">

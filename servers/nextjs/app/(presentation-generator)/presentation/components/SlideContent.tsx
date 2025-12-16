@@ -199,7 +199,7 @@ const SlideContent = ({ slide, index, presentationId }: SlideContentProps) => {
             <div className="absolute top-2 z-20 sm:top-4 hidden md:block left-2 sm:left-4 transition-transform">
               <Popover>
                 <PopoverTrigger>
-                  <ToolTip content="Update slide using prompt">
+                  <ToolTip content="通过描述更新幻灯片内容">
                     <div
                       className={`p-2 group-hover:scale-105 rounded-lg bg-[#5141e5] hover:shadow-md transition-all duration-300 cursor-pointer shadow-md `}
                     >

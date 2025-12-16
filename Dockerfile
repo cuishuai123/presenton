@@ -70,6 +70,8 @@ WORKDIR /app
 
 # Copy FastAPI
 COPY servers/fastapi/ ./servers/fastapi/
+# Copy scripts directory (for Z-Image-Turbo)
+COPY scripts/ ./scripts/
 COPY package.json ./
 COPY start.js LICENSE NOTICE ./
 

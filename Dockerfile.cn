@@ -70,7 +70,7 @@ WORKDIR /app
 COPY servers/fastapi/ ./servers/fastapi/
 COPY package.json ./
 COPY start.js LICENSE NOTICE ./
-
+COPY scripts/ ./scripts/
 # 拷贝 nginx 配置
 COPY nginx.conf /etc/nginx/nginx.conf
 

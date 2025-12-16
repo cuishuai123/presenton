@@ -1447,30 +1447,40 @@ async function getElementAttributes(
       const htmlEl = el as HTMLElement;
 
       const fontSize = parseFloat(computedStyles.fontSize);
-      const computedLineHeight = parseFloat(computedStyles.lineHeight);
-
-      const singleLineHeight = !isNaN(computedLineHeight)
-        ? computedLineHeight
-        : fontSize * 1.2;
-
-      const hasExplicitLineBreaks =
-        innerText.includes("\n") ||
-        innerText.includes("\r") ||
-        innerText.includes("\r\n");
-      const hasTextWrapping = htmlEl.offsetHeight > singleLineHeight * 2;
-      const hasOverflow = htmlEl.scrollHeight > htmlEl.clientHeight;
-
-      const isMultiline =
-        hasExplicitLineBreaks || hasTextWrapping || hasOverflow;
-
-      if (isMultiline && lineHeight && lineHeight !== "normal") {
-        const parsedLineHeight = parseFloat(lineHeight);
-        if (!isNaN(parsedLineHeight)) {
-          return parsedLineHeight;
-        }
+      
+      // 如果 lineHeight 是 "normal"，返回 undefined（使用默认值）
+      if (!lineHeight || lineHeight === "normal") {
+        return undefined;
       }
 
-      return undefined;
+      // 解析 lineHeight 值
+      const parsedLineHeight = parseFloat(lineHeight);
+      
+      // 如果解析失败，返回 undefined
+      if (isNaN(parsedLineHeight)) {
+        return undefined;
+      }
+
+      // 判断是相对值还是绝对值
+      // CSS line-height 可以是：
+      // 1. 无单位数字（相对值，如 1.5 表示 1.5 倍字体大小）
+      // 2. 像素值（绝对值，如 24px）
+      // 3. 百分比（如 150%）
+      // 4. em 单位（如 1.5em）
+      
+      // 如果值小于 10，很可能是相对值（无单位数字或 em）
+      // 如果值大于等于 10，很可能是绝对值（像素值）
+      if (parsedLineHeight < 10) {
+        // 相对值，直接返回
+        return parsedLineHeight;
+      } else {
+        // 绝对值（像素值），需要转换为相对值
+        if (fontSize && fontSize > 0) {
+          return parsedLineHeight / fontSize;
+        }
+        // 如果没有 fontSize，假设默认 16px
+        return parsedLineHeight / 16;
+      }
     }
 
     function parseMargin(computedStyles: CSSStyleDeclaration) {
@@ -1709,15 +1719,28 @@ async function getElementAttributes(
       
       // 判断文本是否应该换行：
       // 1. 如果明确设置了 nowrap 或 pre，不换行
-      // 2. 否则，仅当存在换行符、实际换行或溢出时才换行，避免无必要的自动换行
+      // 2. 否则，默认允许换行，特别是对于长文本
       const hasExplicitLineBreaks = textContent.includes("\n") || textContent.includes("\r");
       const hasTextWrapping = elementHeight > computedLineHeight * 1.5;
       const hasTextOverflow = scrollWidth > elementWidth;
       const isLongText = textContent.trim().length > 30;
       
-      // 如果明确设置了 nowrap，则不换行
-      // 否则，仅在需要时（有换行符、已换行或溢出）才换行，能单行展示则保持单行
-      const textWrap = !isNowrap && (hasExplicitLineBreaks || hasTextWrapping || hasTextOverflow);
+      // 检查 CSS 的 word-wrap 和 overflow-wrap 属性
+      const wordWrap = computedStyles.wordWrap || computedStyles.overflowWrap;
+      const shouldWrapByCSS = wordWrap === "break-word" || wordWrap === "anywhere";
+      
+      // 换行逻辑：
+      // 1. 如果明确设置了 nowrap，则不换行
+      // 2. 如果文本很长（超过30字符），默认允许换行
+      // 3. 如果有明确的换行符、已换行、溢出或 CSS 设置了换行，则换行
+      // 4. 否则，对于短文本且没有溢出，保持单行（避免不必要的换行）
+      const textWrap = !isNowrap && (
+        shouldWrapByCSS ||
+        isLongText ||
+        hasExplicitLineBreaks ||
+        hasTextWrapping ||
+        hasTextOverflow
+      );
       
       // 调试日志：记录长文本的换行判断
       if (isLongText || hasTextWrapping || hasTextOverflow) {

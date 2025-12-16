@@ -231,8 +231,8 @@ class ImageGenerationService:
         env_script_path = get_z_image_turbo_script_path_env()
         if env_script_path:
             if not os.path.isabs(env_script_path):
-                # If relative path, resolve relative to project root
-                env_script_path = os.path.join(project_root, env_script_path)
+                 # If relative path, resolve relative to project root
+                 env_script_path = os.path.join(project_root, env_script_path)
             if os.path.exists(env_script_path):
                 script_path = os.path.abspath(env_script_path)
                 print(f"Using Z-Image-Turbo script from environment variable: {script_path}")
